@@ -1,0 +1,161 @@
+--[[
+    /-----------------------------< Collection Tracker >------------------------------\
+    |   Creator:     SERIOUS                                                          |
+    |   Mod:         Collection Tracker                                               |
+    |   Created:     03.24.2025                                                       |
+    |   Last edit:	 03.24.2025                                                       |
+    \---------------------------------------------------------------------------------/
+
+    inventory 
+    {
+        {
+            obj_id = 1,
+            name = "M4"
+            isPersistent = true
+            isInBox = false
+            parts = 
+            {
+                {
+                    name = "Gas tube"
+                    cond = 25
+                    cond_txt = "25%"
+                }
+            }
+        }
+    }
+--]]
+
+local inventory = {}
+
+function TakeIntoInventory(obj)
+    if not obj then
+        return
+    end
+
+
+    local objParts = item_parts.get_parts_con(obj)
+    local partsUi = {}
+    local id = obj:id()
+    local section = obj:section()
+
+    if objParts then
+        for prtName, cond in pairs(objParts) do
+            if prtName ~= section then
+                partsUi[#partsUi + 1] =
+                {
+                    name = ui_item.get_sec_name(prtName),
+                    cond = cond,
+                    cond_txt = tostring(cond) .. "%"
+                }
+            end
+        end
+    end
+
+    inventory[id] =
+    {
+        obj_id = id, -- Also dictionary key. Will be useful if I iterate with "for"
+        name = ui_item.get_sec_name(section),
+        isPersistent = true,
+        isInBox = false,
+        parts = partsUi
+    }
+end
+
+function TakeFromInventory(id)
+    if not id then
+        return
+    end
+    
+    inventory[id] = nil
+end
+
+function GetInventory()
+    return inventory
+end
+
+function IsInInventory(id)
+    return inventory[id] ~= nil
+end
+
+local function save_state(m_data)
+	if (USE_MARSHAL) then
+		if (not m_data.pda_inventory_tracker) then
+			m_data.pda_inventory_tracker = {}
+		end
+		m_data.pda_inventory_tracker.inventory_entries = inventory
+	end
+end
+
+local function load_state(m_data)
+	if (USE_MARSHAL) then
+		if (not m_data.pda_inventory_tracker) then
+			return
+		end
+		inventory = m_data.pda_inventory_tracker.inventory_entries or {}
+	end
+end
+
+-- Need to consider disassembly too!
+-- Adding/Removing of attachments will spawn a new gun too, right?
+-- scopes for sure give a new gun
+local function LoseInventoryEntry(obj)
+    TakeFromInventory(obj:id())
+end
+
+local function ValidateInventoryEntries()
+    
+    for _, entry in pairs(inventory) do
+        if not entry.isPersistent then
+            TakeFromInventory(entry.obj_id)
+        end
+    end
+end
+
+local function MarkInventoryEntryPersistent(obj)
+    local objId = obj:id()
+    
+    local entry = inventory[objId]
+    
+    if entry then
+        entry.isPersistent = true
+    end
+end
+
+local function MarkInventoryEntryNonPersistent(obj)
+    local objId = obj:id()
+    
+    local entry = inventory[objId]
+    
+    if entry and not entry.isInBox then
+        entry.isPersistent = false
+    end
+end
+
+local function ItemPutToBox(_, obj)
+    local objId = obj:id()
+    local entry = inventory[objId]
+    
+    if entry then
+        entry.isInBox = true
+    end
+end
+
+local function ItemTakenFromBox(_, obj)
+    local objId = obj:id()
+    local entry = inventory[objId]
+    
+    if entry then
+        entry.isInBox = false
+    end
+end
+
+function on_game_start()
+    RegisterScriptCallback("save_state", save_state)
+    RegisterScriptCallback("load_state", load_state)
+    RegisterScriptCallback("actor_on_trade", LoseInventoryEntry)
+    RegisterScriptCallback("on_level_changing", ValidateInventoryEntries)
+    RegisterScriptCallback("actor_on_item_drop", MarkInventoryEntryNonPersistent)
+    RegisterScriptCallback("actor_on_item_take", MarkInventoryEntryPersistent)
+    RegisterScriptCallback("actor_on_item_put_in_box", ItemPutToBox)
+    RegisterScriptCallback("actor_on_item_take_from_box", ItemTakenFromBox)
+end

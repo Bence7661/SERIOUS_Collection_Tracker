@@ -1,0 +1,44 @@
+function take_into_inv_appear_cond(obj, bag, mode)
+    if serious_inventory_tracker.IsInInventory(obj:id()) then
+        return false
+    end
+
+    if (IsWeapon(obj)) or (IsOutfit(obj) or IsHeadgear(obj)) or (obj:section() == "wpn_upd") then
+		return true
+	end
+
+    return false
+end
+
+function take_into_inv_opt(obj, bag, mode)
+	return "take into inventory"
+end
+
+function take_into_inventory(obj, bag, mode)
+    if not obj then
+        return
+    end
+
+    serious_inventory_tracker.TakeIntoInventory(obj)
+end
+
+function take_from_inv_appear_cond(obj, bag, mode)
+    return serious_inventory_tracker.IsInInventory(obj:id())
+end
+
+function take_from_inv_opt(obj, bag, mode)
+	return "take from inventory"
+end
+
+function take_from_inventory(obj, bag, mode)
+    if not obj then
+        return
+    end
+
+    serious_inventory_tracker.TakeFromInventory(obj:id())
+end
+
+function on_game_start()
+	custom_functor_autoinject.add_functor("serious_take_to_inventory", take_into_inv_appear_cond, take_into_inv_opt, nil, take_into_inventory, true)
+	custom_functor_autoinject.add_functor("serious_take_from_inventory", take_from_inv_appear_cond, take_from_inv_opt, nil, take_from_inventory, true)
+end
