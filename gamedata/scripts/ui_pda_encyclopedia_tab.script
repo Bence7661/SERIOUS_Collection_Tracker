@@ -906,7 +906,7 @@ function UpdateDescr(section, str)
 
 		local itemNameColor = utils_xml.get_color("pda_white")
 		for _, entry in pairs(inventoryEntries) do
-			str = str .. "\\n" .. itemNameColor .. entry.itemNameColor
+			str = str .. "\\n" .. itemNameColor .. entry.name
 			
 			if entry.parts then
 				for _, part in pairs(entry.parts) do
