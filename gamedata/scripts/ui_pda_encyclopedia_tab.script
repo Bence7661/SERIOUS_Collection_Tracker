@@ -908,8 +908,12 @@ function UpdateDescr(section, str)
 		for _, entry in pairs(inventoryEntries) do
 			str = str .. "\\n" .. itemNameColor .. entry.name
 			
-			if entry.parts then
-				for _, part in pairs(entry.parts) do
+			-- This will refresh parts on the entry if necessary and return the new conditions.
+			-- This way we always get up to date stats.
+			local entryParts = serious_inventory_tracker.GetEntryParts(entry)
+
+			if entryParts then
+				for _, part in pairs(entryParts) do
 					local clr
 					if (part.cond < 25) then clr = utils_xml.get_color("red")
 					elseif (part.cond < 5) then clr = utils_xml.get_color("orange")

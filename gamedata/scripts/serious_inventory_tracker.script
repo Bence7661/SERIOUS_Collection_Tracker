@@ -20,10 +20,17 @@
                     name = "Gas tube"
                     cond = 25
                     cond_txt = "25%"
+                },
+                {
+                    name = "Barrel"
+                    cond = 20
+                    cond_txt = "20%"
                 }
             }
         }
     }
+
+    Once an item is taken into inventory it becomes static (stats won't refresh).
 --]]
 
 local inventory = {}
@@ -40,7 +47,8 @@ function TakeIntoInventory(obj)
     local id = obj:id()
     local section = obj:section()
     local uiSection = ui_item.get_sec_name(section)
-    
+    local refreshPartsBeforeAccess = false
+
     local parent = obj:parent() -- Basically the owner of the item.
     local isInsideBox = parent and IsInvbox(parent) or false
 
@@ -58,14 +66,22 @@ function TakeIntoInventory(obj)
         end
     end
 
+    local owner = obj:parent()
+
+    if owner and owner:id() == db.actor:id() then
+        refreshPartsBeforeAccess = true
+    end
+
     inventory[uiSection] =
     {
+        obj_ref = obj,
         obj_id = id,
         name = uiSection, -- Also dictionary key. Will be useful if I iterate with "for"
         obj_section = section,
         isPersistent = true,
         isInBox = isInsideBox,
-        parts = partsUi
+        parts = partsUi,
+        refreshPartsBeforeAccess = refreshPartsBeforeAccess
     }
 end
 
@@ -79,7 +95,7 @@ function TakeFromInventory(section)
 end
 
 function OverWriteInventoryItem(obj)
-    local item = GeInventoryItemEntryByUiName(obj)
+    local item = GetInventoryItemEntryByUiName(obj)
 
     local objParts = item_parts.get_parts_con(obj)
     local partsUi = {}
@@ -103,6 +119,7 @@ function OverWriteInventoryItem(obj)
         end
     end
 
+    item.obj_ref = obj
     item.obj_id = id
     item.obj_section = section
     item.isPersistent = true
@@ -121,7 +138,7 @@ function IsInInventory(section)
 end
 
 function IsExactItemInInventory(obj)
-    local item = GeInventoryItemEntryByUiName(obj)
+    local item = GetInventoryItemEntryByUiName(obj)
 
     if item ~= nil and item.obj_id == obj:id() then
         return true
@@ -135,16 +152,16 @@ function GetExactInventoryItemEntry(obj)
         return nil
     end
     
-    local item = GeInventoryItemEntryByUiName(obj)
+    local entry = GetInventoryItemEntryByUiName(obj)
     
-    if item ~= nil and item.obj_id == obj:id() then
+    if entry ~= nil and entry.obj_id == obj:id() then
         return entry
     end
     
     return nil
 end
 
-function GeInventoryItemEntryByUiName(obj)
+function GetInventoryItemEntryByUiName(obj)
     if not obj then
         return nil
     end
@@ -153,6 +170,36 @@ function GeInventoryItemEntryByUiName(obj)
     local entry = inventory[compSection]
     
     return entry
+end
+
+function RefreshEntryParts(entry)
+    local item = entry.obj_ref
+
+    if not item then
+        return
+    end
+
+    local staticParts = item_parts.get_parts_con(item)
+
+    FileLogger.log("Item: %s", item)
+
+    for staticPrtName, staticCond in pairs(staticParts) do
+        for i, part in ipairs(entry.parts) do
+            if part.name == ui_item.get_sec_name(staticPrtName) then
+                entry.parts[i].cond = staticCond
+                entry.parts[i].cond_txt = tostring(staticCond) .. "%"
+            end
+        end
+    end
+end
+
+function GetEntryParts(entry)
+    if not entry then
+        return
+    end
+
+    if entry.refreshPartsBeforeAccess then RefreshEntryParts(entry) end
+    return entry.parts
 end
 
 local function save_state(m_data)
@@ -175,13 +222,13 @@ end
 
 --The actor_on_trade does not trigger for some reason. 
 --For me it's fine because actually the dropping check triggers so the item gets the non persistent flag.
-local function LoseInventoryEntry(obj, _, _)
+function LoseInventoryEntry(obj, _, _)
     if IsExactItemInInventory(obj) then
         TakeFromInventory(obj:section())
     end
 end
 
-local function ValidateInventoryEntries()
+function ValidateInventoryEntries()
     for _, entry in pairs(inventory) do
         if not entry.isPersistent then
             TakeFromInventory(entry.obj_section)
@@ -189,15 +236,20 @@ local function ValidateInventoryEntries()
     end
 end
 
-local function ValidateAgainstCache(obj)
+function ValidateAgainstCache(obj)
     if not IsWeapon(obj) and not IsOutfit(obj) and not IsHeadgear(obj) and obj:section() ~= "wpn_upd" then -- Ignore anything unrelated.
         return
     end
 
     if droppedEntryItemCache and droppedEntryItemCache.parts then
+        
         local inventoryItem = GetExactInventoryItemEntry(droppedEntryItemCache)
-
+        
         if inventoryItem and inventoryItem.parts then
+            --I don't check `entry.refreshParts` here. I should refresh regardless.
+            droppedEntryItemCache:refreshParts()
+            inventoryItem:refreshParts()
+            
             local matches = 0
     
             for _, invItemPart in pairs(inventoryItem.parts) do
@@ -216,7 +268,7 @@ local function ValidateAgainstCache(obj)
     end
 end
 
-local function MarkInventoryEntryPersistent(obj)
+function MarkInventoryEntryPersistent(obj)
     local entry = GetExactInventoryItemEntry(obj)
 
     ValidateAgainstCache(obj)
@@ -229,7 +281,7 @@ local function MarkInventoryEntryPersistent(obj)
     return true
 end
 
-local function DelayedMarkInventoryEntryPersistent(obj)
+function DelayedMarkInventoryEntryPersistent(obj)
     if not IsExactItemInInventory(obj) then
         return
     end
@@ -238,12 +290,12 @@ local function DelayedMarkInventoryEntryPersistent(obj)
     delayedMarkInventoryEntryPersistentEvents = delayedMarkInventoryEntryPersistentEvents + 1
 end
 
-local function DeleteDroppedEntryItemCache()
+function DeleteDroppedEntryItemCache()
     droppedEntryItemCache = nil
     return true
 end
 
-local function MarkInventoryEntryNonPersistent(obj)
+function MarkInventoryEntryNonPersistent(obj)
     if not IsExactItemInInventory(obj) then
         return
     end
@@ -259,6 +311,28 @@ local function MarkInventoryEntryNonPersistent(obj)
     end
 
     return true
+end
+
+function DynamicCondition(obj)
+    local entry = GetExactInventoryItemEntry(obj)
+
+    if not entry then
+        return
+    end
+
+    entry.refreshPartsBeforeAccess = true
+end
+
+function RipDynamicCondition(obj)
+    local entry = GetExactInventoryItemEntry(obj)
+
+    if not entry then
+        return
+    end
+
+    GetEntryParts(entry) -- Refreshes parts if `refreshPartsBeforeAccess` is true.
+
+    entry.refreshPartsBeforeAccess = false
 end
 
 local function ItemPutToBox(_, obj)
@@ -287,8 +361,8 @@ local function ItemTakenFromBox(_, obj)
     end
 end
 
+-- Debug function.
 -- local function FlushInventory(key)
-
 --     if key == DIK_keys.DIK_X then
 --         FileLogger.log("Flushing inventory")
 
@@ -296,6 +370,63 @@ end
 --         droppedEntryItemCache = {}
 --     end
 -- end
+
+function CustomUiBuildDescHeader(obj, sec, str)
+    local originalText = str
+    local injectedText = ""
+    local injectedTextBegin = "Collection tracker: "
+    local injectedTextEnd = " is recorded in inventory."
+    local objectMetaInfo = ""
+    local defColor = utils_xml.get_color("white", false)
+    local color = defColor
+    local newLinesBefore = ""
+    local injectText = false
+
+    if IsMelee(obj) then
+        injectText = true
+        objectMetaInfo = "CQC weapon"
+        newLinesBefore = "\\n"
+    elseif IsWeapon(obj) then
+        injectText = true
+        objectMetaInfo = "weapon"
+        newLinesBefore = "\\n \\n"
+    else
+        newLinesBefore = "\\n"
+    end
+    
+    if IsOutfit(obj) then
+        injectText = true
+        objectMetaInfo = "outfit"
+    end
+    if IsHeadgear(obj) then
+        injectText = true
+        objectMetaInfo = "headgear"
+    end
+    if obj:section() == "wpn_upd" then
+        injectText = true
+        objectMetaInfo = "unknown"
+    end
+
+    if IsExactItemInInventory(obj) then
+        color = utils_xml.get_color("green", false)
+        injectedText = defColor .. injectedTextBegin .. color .. " This " .. objectMetaInfo .. injectedTextEnd
+    elseif IsInInventory(obj:section()) then
+        color = utils_xml.get_color("yellow", false)
+        injectedText = defColor .. injectedTextBegin .. color .. " Similar " .. objectMetaInfo .. injectedTextEnd
+    else
+        color = utils_xml.get_color("red", false)
+        injectedText = defColor .. injectedTextBegin .. color .. " No records found."
+    end
+
+    if injectText then
+        str = newLinesBefore .. injectedText .. "\\n \\n" .. defColor .. originalText
+    end
+
+    return UiOriginalBuildDescHeader(obj, sec, str)
+end
+
+function UiOriginalBuildDescHeader(obj, sec, str)
+end
 
 function on_game_start()
     RegisterScriptCallback("save_state", save_state)
@@ -306,6 +437,14 @@ function on_game_start()
     RegisterScriptCallback("actor_on_item_take", DelayedMarkInventoryEntryPersistent)
     RegisterScriptCallback("actor_on_item_put_in_box", ItemPutToBox)
     RegisterScriptCallback("actor_on_item_take_from_box", ItemTakenFromBox)
-
+    
     -- RegisterScriptCallback("on_key_press", FlushInventory)
+    
+    -- Everything else should turn off dynamic condition.
+    RegisterScriptCallback("actor_on_item_take", DynamicCondition) -- ON
+    RegisterScriptCallback("actor_on_item_drop", RipDynamicCondition) -- OFF
+    -- + On saving entry we check if the item is in player inventory. We can do it by -> obj:parent():id() == db.actor():id()
+
+    UiOriginalBuildDescHeader = ui_item.build_desc_header
+    ui_item.build_desc_header = CustomUiBuildDescHeader
 end
