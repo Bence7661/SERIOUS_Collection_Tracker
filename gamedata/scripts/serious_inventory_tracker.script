@@ -1,10 +1,11 @@
 --[[
-    /-----------------------------< Collection Tracker >------------------------------\
-    |   Creator:     SERIOUS                                                          |
-    |   Mod:         Collection Tracker                                               |
-    |   Created:     03.24.2025                                                       |
-    |   Last edit:	 03.29.2025                                                       |
-    \---------------------------------------------------------------------------------/
+    /------< Collection Tracker >--------\
+    |   Creator:     SERIOUS             |
+    |   Mod:         Collection Tracker  |
+    |   Version:     v1.0.0              |
+    |   Created:     03.24.2025          |
+    |   Last edit:	 03.29.2025          |
+    \------------------------------------/
 
     inventory 
     {
@@ -29,8 +30,6 @@
             }
         }
     }
-
-    Once an item is taken into inventory it becomes static (stats won't refresh).
 --]]
 
 local inventory = {}
@@ -101,6 +100,7 @@ function OverWriteInventoryItem(obj)
     local partsUi = {}
     local id = obj:id()
     local section = obj:section()
+    local refreshPartsBeforeAccess = false
 
     local parent = obj:parent() -- Basically the owner of the item.
     local isInsideBox = parent and IsInvbox(parent) or false
@@ -119,12 +119,18 @@ function OverWriteInventoryItem(obj)
         end
     end
 
+    local owner = obj:parent()
+    if owner and owner:id() == db.actor:id() then
+        refreshPartsBeforeAccess = true
+    end
+
     item.obj_ref = obj
     item.obj_id = id
     item.obj_section = section
     item.isPersistent = true
     item.isInBox = isInsideBox
     item.parts = partsUi
+    item.refreshPartsBeforeAccess = refreshPartsBeforeAccess
 end
 
 function GetInventory()
@@ -180,8 +186,6 @@ function RefreshEntryParts(entry)
     end
 
     local staticParts = item_parts.get_parts_con(item)
-
-    FileLogger.log("Item: %s", item)
 
     for staticPrtName, staticCond in pairs(staticParts) do
         for i, part in ipairs(entry.parts) do
@@ -242,7 +246,6 @@ function ValidateAgainstCache(obj)
     end
 
     if droppedEntryItemCache and droppedEntryItemCache.parts then
-        
         local inventoryItem = GetExactInventoryItemEntry(droppedEntryItemCache)
         
         if inventoryItem and inventoryItem.parts then
@@ -251,7 +254,6 @@ function ValidateAgainstCache(obj)
             inventoryItem:refreshParts()
             
             local matches = 0
-    
             for _, invItemPart in pairs(inventoryItem.parts) do
                 for _, cacheItemPart in pairs(droppedEntryItemCache.parts) do
                     if invItemPart.name == cacheItemPart.name and invItemPart.cond == cacheItemPart.cond then
@@ -301,7 +303,6 @@ function MarkInventoryEntryNonPersistent(obj)
     end
 
     local entry = GetExactInventoryItemEntry(obj)
-
     if (IsWeapon(obj)) or (IsOutfit(obj) or IsHeadgear(obj)) or (obj:section() == "wpn_upd") then -- Make sure we don't cache attachments.
         if entry and not entry.isInBox then
             entry.isPersistent = false
@@ -315,7 +316,6 @@ end
 
 function DynamicCondition(obj)
     local entry = GetExactInventoryItemEntry(obj)
-
     if not entry then
         return
     end
@@ -325,7 +325,6 @@ end
 
 function RipDynamicCondition(obj)
     local entry = GetExactInventoryItemEntry(obj)
-
     if not entry then
         return
     end
@@ -443,7 +442,6 @@ function on_game_start()
     -- Everything else should turn off dynamic condition.
     RegisterScriptCallback("actor_on_item_take", DynamicCondition) -- ON
     RegisterScriptCallback("actor_on_item_drop", RipDynamicCondition) -- OFF
-    -- + On saving entry we check if the item is in player inventory. We can do it by -> obj:parent():id() == db.actor():id()
 
     UiOriginalBuildDescHeader = ui_item.build_desc_header
     ui_item.build_desc_header = CustomUiBuildDescHeader
