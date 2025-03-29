@@ -1,5 +1,18 @@
+local function IsLootingStalker(obj, bag, mode)
+    if bag == "npc_bag" and mode == "loot" then
+        local parent = obj and obj:parent()
+        
+        if parent then
+            return IsStalker(parent)
+        end
+    end
+
+    return false
+end
+
+-- TakeIntoInventory
 function take_into_inv_appear_cond(obj, bag, mode)
-    if serious_inventory_tracker.IsInInventory(obj:id()) then
+    if IsLootingStalker(obj, bag, mode) or serious_inventory_tracker.IsInInventory(obj:section()) then
         return false
     end
 
@@ -10,35 +23,65 @@ function take_into_inv_appear_cond(obj, bag, mode)
     return false
 end
 
-function take_into_inv_opt(obj, bag, mode)
+function take_into_inv_opt(_, _, _)
 	return "take into inventory"
 end
 
-function take_into_inventory(obj, bag, mode)
+function take_into_inventory(obj, _, _)
     if not obj then
         return
     end
 
     serious_inventory_tracker.TakeIntoInventory(obj)
 end
+-- TakeIntoInventory
 
+-- TakeFromInventory
 function take_from_inv_appear_cond(obj, bag, mode)
-    return serious_inventory_tracker.IsInInventory(obj:id())
+    if IsLootingStalker(obj, bag, mode) then
+        return false
+    end
+
+    return serious_inventory_tracker.IsInInventory(obj:section()) and serious_inventory_tracker.IsExactItemInInventory(obj)
 end
 
-function take_from_inv_opt(obj, bag, mode)
+function take_from_inv_opt(_, _, _)
 	return "take from inventory"
 end
 
-function take_from_inventory(obj, bag, mode)
+function take_from_inventory(obj, _, _)
     if not obj then
         return
     end
-
-    serious_inventory_tracker.TakeFromInventory(obj:id())
+    
+    serious_inventory_tracker.TakeFromInventory(obj:section())
 end
+-- TakeFromInventory
+
+-- OverwriteInventoryItem
+function overwrite_inv_item_appear_cond(obj, bag, mode)
+    if IsLootingStalker(obj, bag, mode) then
+        return false
+    end
+
+    return serious_inventory_tracker.IsInInventory(obj:section()) and not serious_inventory_tracker.IsExactItemInInventory(obj)
+end
+
+function overwrite_inv_item_opt(_, _, _)
+	return "overwrite inventory item"
+end
+
+function overwrite_inventory_item(obj, _, _)
+    if not obj then
+        return
+    end
+    
+    serious_inventory_tracker.OverWriteInventoryItem(obj)
+end
+-- OverwriteInventoryItem
 
 function on_game_start()
 	custom_functor_autoinject.add_functor("serious_take_to_inventory", take_into_inv_appear_cond, take_into_inv_opt, nil, take_into_inventory, true)
 	custom_functor_autoinject.add_functor("serious_take_from_inventory", take_from_inv_appear_cond, take_from_inv_opt, nil, take_from_inventory, true)
+	custom_functor_autoinject.add_functor("serious_overwrite_inventory_item", overwrite_inv_item_appear_cond, overwrite_inv_item_opt, nil, overwrite_inventory_item, true)
 end

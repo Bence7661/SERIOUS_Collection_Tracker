@@ -3,7 +3,7 @@
     |   Creator:     SERIOUS                                                          |
     |   Mod:         Collection Tracker                                               |
     |   Created:     03.24.2025                                                       |
-    |   Last edit:	 03.24.2025                                                       |
+    |   Last edit:	 03.29.2025                                                       |
     \---------------------------------------------------------------------------------/
 
     inventory 
@@ -11,6 +11,7 @@
         {
             obj_id = 1,
             name = "M4"
+            obj_section = "wpn_brn180"
             isPersistent = true
             isInBox = false
             parts = 
@@ -26,24 +27,30 @@
 --]]
 
 local inventory = {}
+local droppedEntryItemCache = {}
+local delayedMarkInventoryEntryPersistentEvents = 0
 
 function TakeIntoInventory(obj)
     if not obj then
         return
     end
-
-
+  
     local objParts = item_parts.get_parts_con(obj)
     local partsUi = {}
     local id = obj:id()
     local section = obj:section()
+    local uiSection = ui_item.get_sec_name(section)
+    
+    local parent = obj:parent() -- Basically the owner of the item.
+    local isInsideBox = parent and IsInvbox(parent) or false
 
     if objParts then
         for prtName, cond in pairs(objParts) do
-            if prtName ~= section then
+            local uiPartName = ui_item.get_sec_name(prtName)
+            if uiPartName ~= ui_item.get_sec_name(section) then
                 partsUi[#partsUi + 1] =
                 {
-                    name = ui_item.get_sec_name(prtName),
+                    name = uiPartName,
                     cond = cond,
                     cond_txt = tostring(cond) .. "%"
                 }
@@ -51,30 +58,101 @@ function TakeIntoInventory(obj)
         end
     end
 
-    inventory[id] =
+    inventory[uiSection] =
     {
-        obj_id = id, -- Also dictionary key. Will be useful if I iterate with "for"
-        name = ui_item.get_sec_name(section),
+        obj_id = id,
+        name = uiSection, -- Also dictionary key. Will be useful if I iterate with "for"
+        obj_section = section,
         isPersistent = true,
-        isInBox = false,
+        isInBox = isInsideBox,
         parts = partsUi
     }
 end
 
-function TakeFromInventory(id)
-    if not id then
+function TakeFromInventory(section)
+    if not section then
         return
     end
+    local compSection = ui_item.get_sec_name(section)
     
-    inventory[id] = nil
+    inventory[compSection] = nil
+end
+
+function OverWriteInventoryItem(obj)
+    local item = GeInventoryItemEntryByUiName(obj)
+
+    local objParts = item_parts.get_parts_con(obj)
+    local partsUi = {}
+    local id = obj:id()
+    local section = obj:section()
+
+    local parent = obj:parent() -- Basically the owner of the item.
+    local isInsideBox = parent and IsInvbox(parent) or false
+
+    if objParts then
+        for prtName, cond in pairs(objParts) do
+            local uiPartName = ui_item.get_sec_name(prtName)
+            if uiPartName ~= ui_item.get_sec_name(section) then
+                partsUi[#partsUi + 1] =
+                {
+                    name = uiPartName,
+                    cond = cond,
+                    cond_txt = tostring(cond) .. "%"
+                }
+            end
+        end
+    end
+
+    item.obj_id = id
+    item.obj_section = section
+    item.isPersistent = true
+    item.isInBox = isInsideBox
+    item.parts = partsUi
 end
 
 function GetInventory()
     return inventory
 end
 
-function IsInInventory(id)
-    return inventory[id] ~= nil
+function IsInInventory(section)
+    local compSection = ui_item.get_sec_name(section)
+
+    return inventory[compSection] ~= nil
+end
+
+function IsExactItemInInventory(obj)
+    local item = GeInventoryItemEntryByUiName(obj)
+
+    if item ~= nil and item.obj_id == obj:id() then
+        return true
+    end
+
+    return false
+end
+
+function GetExactInventoryItemEntry(obj)
+    if not obj then
+        return nil
+    end
+    
+    local item = GeInventoryItemEntryByUiName(obj)
+    
+    if item ~= nil and item.obj_id == obj:id() then
+        return entry
+    end
+    
+    return nil
+end
+
+function GeInventoryItemEntryByUiName(obj)
+    if not obj then
+        return nil
+    end
+    
+    local compSection = ui_item.get_sec_name(obj:section())
+    local entry = inventory[compSection]
+    
+    return entry
 end
 
 local function save_state(m_data)
@@ -95,67 +173,139 @@ local function load_state(m_data)
 	end
 end
 
--- Need to consider disassembly too!
--- Adding/Removing of attachments will spawn a new gun too, right?
--- scopes for sure give a new gun
-local function LoseInventoryEntry(obj)
-    TakeFromInventory(obj:id())
+--The actor_on_trade does not trigger for some reason. 
+--For me it's fine because actually the dropping check triggers so the item gets the non persistent flag.
+local function LoseInventoryEntry(obj, _, _)
+    if IsExactItemInInventory(obj) then
+        TakeFromInventory(obj:section())
+    end
 end
 
 local function ValidateInventoryEntries()
-    
     for _, entry in pairs(inventory) do
         if not entry.isPersistent then
-            TakeFromInventory(entry.obj_id)
+            TakeFromInventory(entry.obj_section)
+        end
+    end
+end
+
+local function ValidateAgainstCache(obj)
+    if not IsWeapon(obj) and not IsOutfit(obj) and not IsHeadgear(obj) and obj:section() ~= "wpn_upd" then -- Ignore anything unrelated.
+        return
+    end
+
+    if droppedEntryItemCache and droppedEntryItemCache.parts then
+        local inventoryItem = GetExactInventoryItemEntry(droppedEntryItemCache)
+
+        if inventoryItem and inventoryItem.parts then
+            local matches = 0
+    
+            for _, invItemPart in pairs(inventoryItem.parts) do
+                for _, cacheItemPart in pairs(droppedEntryItemCache.parts) do
+                    if invItemPart.name == cacheItemPart.name and invItemPart.cond == cacheItemPart.cond then
+                        matches = matches + 1
+                    end
+                end
+            end
+
+            if matches == #inventoryItem.parts then
+                inventoryItem.obj_id = obj:id()
+                inventoryItem.isPersistent = true
+            end
         end
     end
 end
 
 local function MarkInventoryEntryPersistent(obj)
-    local objId = obj:id()
-    
-    local entry = inventory[objId]
-    
+    local entry = GetExactInventoryItemEntry(obj)
+
+    ValidateAgainstCache(obj)
+
     if entry then
         entry.isPersistent = true
     end
+
+    delayedMarkInventoryEntryPersistentEvents = delayedMarkInventoryEntryPersistentEvents - 1
+    return true
+end
+
+local function DelayedMarkInventoryEntryPersistent(obj)
+    if not IsExactItemInInventory(obj) then
+        return
+    end
+
+    CreateTimeEvent("inventory_tracker", "delay_MarkInventoryEntryPersistent_" .. delayedMarkInventoryEntryPersistentEvents, 0.1, MarkInventoryEntryPersistent, obj)
+    delayedMarkInventoryEntryPersistentEvents = delayedMarkInventoryEntryPersistentEvents + 1
+end
+
+local function DeleteDroppedEntryItemCache()
+    droppedEntryItemCache = nil
+    return true
 end
 
 local function MarkInventoryEntryNonPersistent(obj)
-    local objId = obj:id()
-    
-    local entry = inventory[objId]
-    
-    if entry and not entry.isInBox then
-        entry.isPersistent = false
+    if not IsExactItemInInventory(obj) then
+        return
     end
+
+    local entry = GetExactInventoryItemEntry(obj)
+
+    if (IsWeapon(obj)) or (IsOutfit(obj) or IsHeadgear(obj)) or (obj:section() == "wpn_upd") then -- Make sure we don't cache attachments.
+        if entry and not entry.isInBox then
+            entry.isPersistent = false
+            droppedEntryItemCache = entry
+            CreateTimeEvent("inventory_tracker", "DeleteDroppedEntryItemCache", 0.3, DeleteDroppedEntryItemCache)
+        end
+    end
+
+    return true
 end
 
 local function ItemPutToBox(_, obj)
+    if not IsExactItemInInventory(obj) then
+        return
+    end
+
     local objId = obj:id()
-    local entry = inventory[objId]
+    local entry = GetExactInventoryItemEntry(obj)
     
-    if entry then
+    if entry and entry.obj_id == objId then
         entry.isInBox = true
     end
 end
 
 local function ItemTakenFromBox(_, obj)
+    if not IsExactItemInInventory(obj) then
+        return
+    end
+
     local objId = obj:id()
-    local entry = inventory[objId]
+    local entry = GetExactInventoryItemEntry(obj)
     
-    if entry then
+    if entry and entry.obj_id == objId then
         entry.isInBox = false
     end
 end
 
+-- local function FlushInventory(key)
+
+--     if key == DIK_keys.DIK_X then
+--         FileLogger.log("Flushing inventory")
+
+--         inventory = {}
+--         droppedEntryItemCache = {}
+--     end
+-- end
+
 function on_game_start()
     RegisterScriptCallback("save_state", save_state)
     RegisterScriptCallback("load_state", load_state)
-    RegisterScriptCallback("actor_on_trade", LoseInventoryEntry)
+    RegisterScriptCallback("actor_on_trade", LoseInventoryEntry) --
     RegisterScriptCallback("on_level_changing", ValidateInventoryEntries)
     RegisterScriptCallback("actor_on_item_drop", MarkInventoryEntryNonPersistent)
-    RegisterScriptCallback("actor_on_item_take", MarkInventoryEntryPersistent)
+    RegisterScriptCallback("actor_on_item_take", DelayedMarkInventoryEntryPersistent)
     RegisterScriptCallback("actor_on_item_put_in_box", ItemPutToBox)
     RegisterScriptCallback("actor_on_item_take_from_box", ItemTakenFromBox)
+
+    -- RegisterScriptCallback("on_key_press", FlushInventory)
 end
