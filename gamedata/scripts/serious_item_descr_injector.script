@@ -34,6 +34,22 @@ function CustomUiBuildDescHeader(obj, sec, str)
         objectMetaInfo = "unknown"
     end
 
+    --DBG
+    -- local objParts = item_parts.get_parts_con(obj) 
+    -- local score = 0
+
+    -- if objParts then
+    --     for prtName, cond in pairs(objParts) do
+    --         local uiPartName = ui_item.get_sec_name(prtName)
+    --         if uiPartName ~= ui_item.get_sec_name(obj:section()) then
+    --             score = score + cond
+    --         end
+    --     end
+    -- end
+
+    -- injectedTextBegin = injectedTextBegin .. "Id: " .. obj:id() .. " Score: " .. score
+    --DBG
+
     if serious_inventory_tracker.IsExactItemInInventory(obj) then
         color = utils_xml.get_color("green", false)
         injectedText = defColor .. injectedTextBegin .. color .. " This " .. objectMetaInfo .. injectedTextEnd

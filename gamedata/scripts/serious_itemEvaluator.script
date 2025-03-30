@@ -1,0 +1,41 @@
+function EvaluateItemCondition(obj)
+    local score = -1
+    local objParts = obj and item_parts.get_parts_con(obj) or nil
+
+    if not obj then return score end
+    if not objParts then return obj:condition() end
+
+    for prtName, cond in pairs(objParts) do
+        local uiPartName = ui_item.get_sec_name(prtName)
+        if uiPartName ~= ui_item.get_sec_name(obj:section()) then
+            score = score + cond
+        end
+    end
+    
+    return score
+end
+
+--[[
+    Maybe I should modify the calculation of the "winner".
+    Right now if there are 2 items
+    - 1 with many low cond part 
+    - one with all 1% parts except 1 part that is 100% 
+    The one where all parts combined is a bigger number wins.
+
+    I think I'll just take the average condition of parts and then add it to the score as well. Or average and median.
+--]]
+function ReturnTheBetterOne(itemA, itemB)
+    if not itemA and not itemB then return nil end
+    if not itemA then return itemB end
+    if not itemB then return itemA end
+    if itemA:id() == itemB:id() then return itemA, true end
+
+    local itemAScore = EvaluateItemCondition(itemA)
+    local itemBScore = EvaluateItemCondition(itemB)
+
+    if itemAScore < itemBScore then
+        return itemB
+    end
+
+    return itemA
+end

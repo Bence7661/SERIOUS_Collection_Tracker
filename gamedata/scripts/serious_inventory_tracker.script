@@ -79,76 +79,31 @@ function TakeIntoInventory(obj)
 end
 
 function BatchTakeIntoInventory(stash)
-    -- Consider duplicates!!
     local registerQueue = {}
 
-    -- Maybe I should modify the calculation of the "winner".
-    -- Right now if there are 2 items
-    -- 1 with many low cond part 
-    -- one with all 1% parts except 1 part that is 100% 
-    -- I think I'll just take the average condition of parts and then add it to the score as well. Or average and median.
     local function collectBest(_, item)
-        if (IsWeapon(item)) or (IsOutfit(item) or IsHeadgear(item)) or (item:section() == "wpn_upd") then --KNIVES WILL CRASH THIS
+        if (IsWeapon(item)) or (IsOutfit(item) or IsHeadgear(item)) or (item:section() == "wpn_upd") then
             local registeredInvItem = GetInventoryItemEntryByUiName(item)
             if item:id() ~= (registeredInvItem and registeredInvItem.obj_id) then
-                    
                 local uiName = ui_item.get_sec_name(item:section())
-                local contestantItem1 =
-                {
-                    itmObj = item or nil,
-                    score = -1
-                }
-                local contestantItem2 =
-                {
-                    itmObj = registeredInvItem and registeredInvItem.obj_ref or registerQueue[uiName].itmObj or nil,
-                    score = -1
-                }
-        
-                local tempScore = 0
-                local objParts = item_parts.get_parts_con(item)
-                if objParts then
-                    for prtName, cond in pairs(objParts) do
-                        local uiPartName = ui_item.get_sec_name(prtName)
-                        if uiPartName ~= ui_item.get_sec_name(item:section()) then
-                            tempScore = tempScore + cond
-                        end
-                    end
-                    
-                    contestantItem1.score = tempScore
-                end
                 
-                if contestantItem2.itmObj then
-                    tempScore = 0
-                    objParts = item_parts.get_parts_con(contestantItem2.itmObj)
-                    if objParts then
-                        for prtName, cond in pairs(objParts) do
-                            local uiPartName = ui_item.get_sec_name(prtName)
-                            if uiPartName ~= ui_item.get_sec_name(item:section()) then
-                                tempScore = tempScore + cond
-                            end
-                        end
-                    end
+                local itemA = item
+                local itemB = registeredInvItem and registeredInvItem.obj_ref or registerQueue[uiName]
+                local betterItem, isSameItem = serious_itemEvaluator.ReturnTheBetterOne(itemA, itemB)
 
-                    contestantItem2.score = tempScore
-                else
-                    contestantItem2 = registerQueue[uiName]
-                end
-        
-                if contestantItem2 and contestantItem2.score > contestantItem1.score then
-                    registerQueue[uiName] = contestantItem2
-                else
-                    TakeFromInventory(item:section()) -- Idempotent
-                    registerQueue[uiName] = contestantItem1
+                registerQueue[uiName] = betterItem
+
+                if not isSameItem then
+                    TakeFromInventory(item:section())
                 end
             end
-
         end
     end
 
     stash:iterate_inventory_box(collectBest, nil)
 
     for _, queueItem in pairs(registerQueue) do
-        TakeIntoInventory(queueItem.itmObj)
+        TakeIntoInventory(queueItem)
     end
 end
 
@@ -264,37 +219,10 @@ function GetEntryParts(entry)
     return entry.parts
 end
 
-local function save_state(m_data)
-	if (USE_MARSHAL) then
-		if (not m_data.pda_inventory_tracker) then
-			m_data.pda_inventory_tracker = {}
-		end
-		m_data.pda_inventory_tracker.inventory_entries = inventory
-	end
-end
-
-local function load_state(m_data)
-	if (USE_MARSHAL) then
-		if (not m_data.pda_inventory_tracker) then
-			return
-		end
-		inventory = m_data.pda_inventory_tracker.inventory_entries or {}
-	end
-end
-
---The actor_on_trade does not trigger for some reason. 
---For me it's fine because actually the dropping check triggers so the item gets the non persistent flag.
+-- General callbacks
 function LoseInventoryEntry(obj, _, _)
     if IsExactItemInInventory(obj) then
         TakeFromInventory(obj:section())
-    end
-end
-
-function ValidateInventoryEntries()
-    for _, entry in pairs(inventory) do
-        if not entry.isPersistent then
-            TakeFromInventory(entry.obj_section)
-        end
     end
 end
 
@@ -327,6 +255,36 @@ function ValidateAgainstCache(obj)
     end
 end
 
+function MarkInventoryEntryNonPersistent(obj)
+    if not IsExactItemInInventory(obj) then
+        return
+    end
+
+    local entry = GetExactInventoryItemEntry(obj)
+    if (IsWeapon(obj)) or (IsOutfit(obj) or IsHeadgear(obj)) or (obj:section() == "wpn_upd") then -- Make sure we don't cache attachments.
+        if entry and not entry.isInBox then
+            entry.isPersistent = false
+            droppedEntryItemCache = entry
+            CreateTimeEvent("inventory_tracker", "DeleteDroppedEntryItemCache", 0.3, DeleteDroppedEntryItemCache)
+        end
+    end
+
+    return true
+end
+
+function DeleteDroppedEntryItemCache()
+    droppedEntryItemCache = nil
+    return true
+end
+
+function ValidateInventoryEntries()
+    for _, entry in pairs(inventory) do
+        if not entry.isPersistent then
+            TakeFromInventory(entry.obj_section)
+        end
+    end
+end
+
 function MarkInventoryEntryPersistent(obj)
     local entry = GetExactInventoryItemEntry(obj)
 
@@ -347,47 +305,6 @@ function DelayedMarkInventoryEntryPersistent(obj)
 
     CreateTimeEvent("inventory_tracker", "delay_MarkInventoryEntryPersistent_" .. delayedMarkInventoryEntryPersistentEvents, 0.1, MarkInventoryEntryPersistent, obj)
     delayedMarkInventoryEntryPersistentEvents = delayedMarkInventoryEntryPersistentEvents + 1
-end
-
-function DeleteDroppedEntryItemCache()
-    droppedEntryItemCache = nil
-    return true
-end
-
-function MarkInventoryEntryNonPersistent(obj)
-    if not IsExactItemInInventory(obj) then
-        return
-    end
-
-    local entry = GetExactInventoryItemEntry(obj)
-    if (IsWeapon(obj)) or (IsOutfit(obj) or IsHeadgear(obj)) or (obj:section() == "wpn_upd") then -- Make sure we don't cache attachments.
-        if entry and not entry.isInBox then
-            entry.isPersistent = false
-            droppedEntryItemCache = entry
-            CreateTimeEvent("inventory_tracker", "DeleteDroppedEntryItemCache", 0.3, DeleteDroppedEntryItemCache)
-        end
-    end
-
-    return true
-end
-
-function DynamicCondition(obj)
-    local entry = GetExactInventoryItemEntry(obj)
-    if not entry then
-        return
-    end
-
-    entry.refreshPartsBeforeAccess = true
-end
-
-function RipDynamicCondition(obj)
-    local entry = GetExactInventoryItemEntry(obj)
-    if not entry then
-        return
-    end
-
-    GetEntryParts(entry) -- Refreshes parts if `refreshPartsBeforeAccess` is true.
-    entry.refreshPartsBeforeAccess = false
 end
 
 local function ItemPutToBox(_, obj)
@@ -413,50 +330,96 @@ local function ItemTakenFromBox(_, obj)
         entry.isInBox = false
     end
 end
+-- General callbacks
 
--- Debug function.
--- local function FlushInventory(key)
---     if key == DIK_keys.DIK_X then
---         FileLogger.log("Flushing inventory")
+-- Performance
+function DynamicCondition(obj)
+    local entry = GetExactInventoryItemEntry(obj)
+    if not entry then
+        return
+    end
+    
+    entry.refreshPartsBeforeAccess = true
+end
+
+function RipDynamicCondition(obj)
+    local entry = GetExactInventoryItemEntry(obj)
+    if not entry then
+        return
+    end
+    
+    GetEntryParts(entry) -- Refreshes parts if `refreshPartsBeforeAccess` is true.
+    entry.refreshPartsBeforeAccess = false
+end
+-- Performance
+
+-- Save/Load
+local function save_state(m_data)
+	if (USE_MARSHAL) then
+		if (not m_data.pda_inventory_tracker) then
+			m_data.pda_inventory_tracker = {}
+		end
+		m_data.pda_inventory_tracker.inventory_entries = inventory
+	end
+end
+
+local function load_state(m_data)
+	if (USE_MARSHAL) then
+		if (not m_data.pda_inventory_tracker) then
+			return
+		end
+		inventory = m_data.pda_inventory_tracker.inventory_entries or {}
+	end
+end
+-- Save/Load
+
+-- Debug
+local function FlushInventory(key)
+    if key == DIK_keys.DIK_X then
+        FileLogger.log("Flushing inventory")
         
---         inventory = {}
---         droppedEntryItemCache = {}
---     end
--- end
+        inventory = {}
+        droppedEntryItemCache = {}
+    end
+end
 
--- local function RandomPartsCondForInvWeapons(key)
---     if key == DIK_keys.DIK_C then
---         FileLogger.log("Randomizing weapon part conditions")
-
---         db.actor:iterate_inventory(function(_, item)
---             if not IsMelee(item) and IsWeapon(item) then
---                 local parts = item_parts.get_parts_con(item)
-
---                 for name, _ in pairs(parts) do
---                     parts[name] = math.random(1, 100)
---                 end
-
---                 item_parts.set_parts_con(item:id(), parts)
---             end
---         end, nil)
---     end
--- end
+local function RandomPartsCondForInvWeapons(key)
+    if key == DIK_keys.DIK_C then
+        FileLogger.log("Randomizing weapon part conditions")
+        
+        db.actor:iterate_inventory(function(_, item)
+            if not IsMelee(item) and IsWeapon(item) then
+                local parts = item_parts.get_parts_con(item)
+                
+                for name, _ in pairs(parts) do
+                    parts[name] = math.random(1, 100)
+                end
+                
+                item_parts.set_parts_con(item:id(), parts)
+            end
+        end, nil)
+    end
+end
+-- Debug
 
 function on_game_start()
-    RegisterScriptCallback("save_state", save_state)
-    RegisterScriptCallback("load_state", load_state)
-    RegisterScriptCallback("actor_on_trade", LoseInventoryEntry) --
+    -- General callbacks
+    RegisterScriptCallback("actor_on_trade", LoseInventoryEntry) --This doesn't trigger for some reason. Item drop triggers on sell so it's fine.
     RegisterScriptCallback("on_level_changing", ValidateInventoryEntries)
     RegisterScriptCallback("actor_on_item_drop", MarkInventoryEntryNonPersistent)
     RegisterScriptCallback("actor_on_item_take", DelayedMarkInventoryEntryPersistent)
     RegisterScriptCallback("actor_on_item_put_in_box", ItemPutToBox)
     RegisterScriptCallback("actor_on_item_take_from_box", ItemTakenFromBox)
     
-    -- Everything else should turn off dynamic condition.
+    -- Performance
     RegisterScriptCallback("actor_on_item_take", DynamicCondition) -- ON
     RegisterScriptCallback("actor_on_item_drop", RipDynamicCondition) -- OFF
 
-    -- Debug stuff.
+    --Save/Load
+    RegisterScriptCallback("save_state", save_state)
+    RegisterScriptCallback("load_state", load_state)
+    
+    -- -- Debug
     -- RegisterScriptCallback("on_key_press", FlushInventory)
     -- RegisterScriptCallback("on_key_press", RandomPartsCondForInvWeapons)
 end
