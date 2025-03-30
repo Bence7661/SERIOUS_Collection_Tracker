@@ -7,15 +7,21 @@ function HasParts(obj)
     if IsWeapon(obj) or IsOutfit(obj) or IsHeadgear(obj) then return true end
 end
 
+function HasCondition(obj)
+    if not obj then return false end
+    
+    if IsMelee(obj) or IsOutfit(obj) or IsHeadgear(obj) then return true end
+    if IsWeapon(obj) then return false end
+end
+
 function ShouldDisplayCond(obj)
     if not obj then return false end
 
-    if not config.Get("disp_general_cond") then
+    if not HasCondition(obj) then
         return false
     end
 
-    if IsMelee(obj) or IsOutfit(obj) or IsHeadgear(obj) then return true end
-    if IsWeapon(obj) then return false end
+    return config.Get("disp_general_cond")
 end
 
 function IsRelevantItem(obj)

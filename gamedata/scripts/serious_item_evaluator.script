@@ -35,18 +35,19 @@ function EvaluateItemCondition(obj)
     return score
 end
 
+-- Returns: <obj>, <bool>
 function ReturnTheBetterOne(itemA, itemB)
-    if not itemA and not itemB then return nil end
-    if not itemA then return itemB end
-    if not itemB then return itemA end
+    if not itemA and not itemB then return nil, false end
+    if not itemA then return itemB, false end
+    if not itemB then return itemA, false end
     if itemA:id() == itemB:id() then return itemA, true end
 
     local itemAScore = EvaluateItemCondition(itemA)
     local itemBScore = EvaluateItemCondition(itemB)
 
     if itemAScore < itemBScore then
-        return itemB
+        return itemB, false
     end
 
-    return itemA
+    return itemA, false
 end
