@@ -902,7 +902,7 @@ function UpdateDescr(section, str)
 
 	-- Collection inventory
 	elseif (section == "encyclopedia__notes__collection_inventory") then
-		local inventoryEntries = serious_inventory_tracker.GetInventory()
+		local inventoryEntries = serious_collection_tracker.GetInventory()
 
 		local itemNameColor = utils_xml.get_color("pda_white")
 		for _, entry in pairs(inventoryEntries) do
@@ -916,7 +916,7 @@ function UpdateDescr(section, str)
 			
 			-- This will refresh parts on the entry if necessary and return the new conditions.
 			-- This way we always get up to date stats.
-			local entryParts = serious_inventory_tracker.GetEntryParts(entry)
+			local entryParts = serious_collection_tracker.GetEntryParts(entry)
 
 			if entryParts and not CollectionTrackerConfig.Get("slim_entries") then
 				for _, part in pairs(entryParts) do

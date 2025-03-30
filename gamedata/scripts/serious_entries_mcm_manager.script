@@ -9,7 +9,7 @@ local function DeleteEntries_CurrSaveScope()
         local optionCurrVal = ui_mcm.get("serious_collection_tracker/delete_entries")
 
         if optionCurrVal then -- Only if true we'll trigger this.
-            serious_inventory_tracker.DeleteEntriesForCurrSave()
+            serious_collection_tracker.DeleteEntriesForCurrSave()
 
             ui_mcm.set("serious_collection_tracker/delete_entries", false)
         end

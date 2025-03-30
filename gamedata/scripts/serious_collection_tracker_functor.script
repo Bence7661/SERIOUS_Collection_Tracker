@@ -1,3 +1,6 @@
+local utils = serious_collection_tracker_utils
+local collectionTracker = serious_collection_tracker
+
 local function IsLootingStalker(obj, bag, mode)
     if bag == "npc_bag" and mode == "loot" then
         local parent = obj and obj:parent()
@@ -12,11 +15,11 @@ end
 
 -- TakeIntoInventory
 function take_into_inv_appear_cond(obj, bag, mode)
-    if IsLootingStalker(obj, bag, mode) or serious_inventory_tracker.IsInInventory(obj:section()) then
+    if IsLootingStalker(obj, bag, mode) or collectionTracker.IsInInventory(obj:section()) then
         return false
     end
 
-    if (IsWeapon(obj)) or (IsOutfit(obj) or IsHeadgear(obj)) or (obj:section() == "wpn_upd") then
+    if utils.IsRelevantItem(obj) then
 		return true
 	end
 
@@ -32,7 +35,7 @@ function take_into_inventory(obj, _, _)
         return
     end
 
-    serious_inventory_tracker.UpsertInventoryEntry(obj)
+    collectionTracker.UpsertInventoryEntry(obj)
 end
 -- TakeIntoInventory
 
@@ -42,7 +45,7 @@ function take_from_inv_appear_cond(obj, bag, mode)
         return false
     end
 
-    return serious_inventory_tracker.IsInInventory(obj:section()) and serious_inventory_tracker.IsExactItemInInventory(obj)
+    return collectionTracker.IsInInventory(obj:section()) and collectionTracker.IsExactItemInInventory(obj)
 end
 
 function take_from_inv_opt(_, _, _)
@@ -54,7 +57,7 @@ function take_from_inventory(obj, _, _)
         return
     end
     
-    serious_inventory_tracker.TakeFromInventory(obj:section())
+    collectionTracker.TakeFromInventory(obj:section())
 end
 -- TakeFromInventory
 
@@ -64,7 +67,7 @@ function overwrite_inv_item_appear_cond(obj, bag, mode)
         return false
     end
 
-    return serious_inventory_tracker.IsInInventory(obj:section()) and not serious_inventory_tracker.IsExactItemInInventory(obj)
+    return collectionTracker.IsInInventory(obj:section()) and not collectionTracker.IsExactItemInInventory(obj)
 end
 
 function overwrite_inv_item_opt(_, _, _)
@@ -76,7 +79,7 @@ function overwrite_inventory_item(obj, _, _)
         return
     end
     
-    serious_inventory_tracker.UpsertInventoryEntry(obj)
+    collectionTracker.UpsertInventoryEntry(obj)
 end
 -- OverwriteInventoryItem
 
@@ -86,7 +89,7 @@ function batch_inv_appear_cond(obj, bag, mode)
         local parent = obj and obj:parent()
         
         if parent and IsInvbox(parent) then
-            if (IsWeapon(obj)) or (IsOutfit(obj) or IsHeadgear(obj)) or (obj:section() == "wpn_upd") then
+            if utils.IsRelevantItem(obj) then
                 return true
             end
         end
@@ -105,7 +108,7 @@ function take_batch_inventory(obj, _, _)
     end
 
     local stash = obj:parent()
-    serious_inventory_tracker.BatchTakeIntoInventory(stash)
+    collectionTracker.BatchTakeIntoInventory(stash)
 end
 -- Batch register
 

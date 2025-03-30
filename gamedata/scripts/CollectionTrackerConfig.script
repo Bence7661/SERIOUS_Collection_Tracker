@@ -1,8 +1,7 @@
 local mcm_conf = serious_collection_tracker_mcm.get_config
-local isDebug = true
+local isDebug = false
 
 function IsDebug() return isDebug end
 function Get(configSect)
-    FileLogger.log("Config[%s]: %s ", configSect, mcm_conf(configSect))
     return mcm_conf(configSect)
 end

@@ -4,7 +4,7 @@
     |   Mod:         Collection Tracker  |
     |   Version:     v1.0.0              |
     |   Created:     03.24.2025          |
-    |   Last edit:	 03.29.2025          |
+    |   Last edit:	 03.30.2025          |
     \------------------------------------/
 
     inventory 
@@ -91,7 +91,7 @@ function BatchTakeIntoInventory(stash)
                 
                 local itemA = item
                 local itemB = registeredInvItem and registeredInvItem.obj_ref or registerQueue[uiName]
-                local betterItem, isSameItem = serious_itemEvaluator.ReturnTheBetterOne(itemA, itemB)
+                local betterItem, isSameItem = serious_item_evaluator.ReturnTheBetterOne(itemA, itemB)
 
                 registerQueue[uiName] = betterItem
 

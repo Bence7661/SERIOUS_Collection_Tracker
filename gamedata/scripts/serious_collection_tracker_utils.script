@@ -19,7 +19,7 @@ function ShouldDisplayCond(obj)
 end
 
 function IsRelevantItem(obj)
-    if not IsWeapon(obj) and not IsMelee(obj) and not IsOutfit(obj) and not IsHeadgear(obj) and obj:section() ~= "wpn_upd" then
+    if not IsWeapon(obj) and not IsMelee(obj) and not IsOutfit(obj) and not IsHeadgear(obj) then
        return false
     end
 

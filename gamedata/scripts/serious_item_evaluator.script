@@ -1,5 +1,22 @@
+local function GetMedian(numbers)
+    if #numbers == 0 then
+        return 0
+    end
+
+    table.sort(numbers)
+    local mid = math.floor(#numbers / 2 + 0.5)
+
+    if #numbers % 2 == 1 then
+        return numbers[mid + 1]
+    else
+        return math.floor((numbers[mid] + numbers[mid + 1]) / 2 + 0.5)
+    end
+end
+
 function EvaluateItemCondition(obj)
     local score = -1
+    local partCnt = 0
+    local condList = {}
     local objParts = obj and item_parts.get_parts_con(obj) or nil
 
     if not obj then return score end
@@ -9,21 +26,15 @@ function EvaluateItemCondition(obj)
         local uiPartName = ui_item.get_sec_name(prtName)
         if uiPartName ~= ui_item.get_sec_name(obj:section()) then
             score = score + cond
+            partCnt = partCnt + 1
+            table.insert(condList, cond)
         end
     end
     
+    score = score + GetMedian(condList)
     return score
 end
 
---[[
-    Maybe I should modify the calculation of the "winner".
-    Right now if there are 2 items
-    - 1 with many low cond part 
-    - one with all 1% parts except 1 part that is 100% 
-    The one where all parts combined is a bigger number wins.
-
-    I think I'll just take the average condition of parts and then add it to the score as well. Or average and median.
---]]
 function ReturnTheBetterOne(itemA, itemB)
     if not itemA and not itemB then return nil end
     if not itemA then return itemB end

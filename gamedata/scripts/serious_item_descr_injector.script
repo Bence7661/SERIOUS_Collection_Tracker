@@ -1,6 +1,6 @@
 local config = CollectionTrackerConfig
 local utils = serious_collection_tracker_utils
-local invTracker = serious_inventory_tracker
+local collectionTracker = serious_collection_tracker
 
 function CustomUiBuildDescHeader(obj, sec, str)
     if not utils.IsRelevantItem(obj) then return UiOriginalBuildDescHeader(obj, sec, str) end
@@ -35,10 +35,6 @@ function CustomUiBuildDescHeader(obj, sec, str)
         injectText = true
         objectMetaInfo = "headgear"
     end
-    if obj:section() == "wpn_upd" then
-        injectText = true
-        objectMetaInfo = "unknown"
-    end
 
     if config.IsDebug() then
         local objParts = item_parts.get_parts_con(obj) 
@@ -56,10 +52,10 @@ function CustomUiBuildDescHeader(obj, sec, str)
         injectedTextBegin = injectedTextBegin .. "Id: " .. obj:id() .. " Score: " .. score
     end
 
-    if invTracker.IsExactItemInInventory(obj) then
+    if collectionTracker.IsExactItemInInventory(obj) then
         color = utils_xml.get_color("green", false)
         injectedText = defColor .. injectedTextBegin .. color .. " This " .. objectMetaInfo .. injectedTextEnd
-    elseif invTracker.IsInInventory(obj:section()) then
+    elseif collectionTracker.IsInInventory(obj:section()) then
         color = utils_xml.get_color("yellow", false)
         injectedText = defColor .. injectedTextBegin .. color .. " Similar " .. objectMetaInfo .. injectedTextEnd
     else
