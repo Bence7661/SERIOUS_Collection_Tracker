@@ -43,7 +43,6 @@ local delayedMarkInventoryEntryPersistentEvents = 0
 function UpsertInventoryEntry(obj)
     if not obj then return false end
 
-    local item = GetInventoryItemEntryByUiName(obj)
     local id = obj:id()
     local entryItemParts = {}
     local section = obj:section()
@@ -71,6 +70,7 @@ function UpsertInventoryEntry(obj)
     {
         obj_ref = obj,
         obj_id = id,
+        general_cond = obj:condition() * 100,
         name = uiSection, -- Also dictionary key. Will be useful if I iterate with "for"
         obj_section = section,
         isPersistent = true,
@@ -159,11 +159,16 @@ function GetInventoryItemEntryByUiName(obj)
     return entry
 end
 
-function RefreshEntryParts(entry)
+function RefreshEntryCondition(entry) -- Should be refresh entry condition
     local item = entry.obj_ref
-
     if not item then
         return
+    end
+
+    entry.general_cond = item:condition()
+
+    if not utils.HasParts(item) then
+        return true
     end
 
     local staticParts = item_parts.get_parts_con(item)
@@ -185,7 +190,7 @@ function GetEntryParts(entry)
         return
     end
 
-    if entry.refreshPartsBeforeAccess then RefreshEntryParts(entry) end
+    if entry.refreshPartsBeforeAccess then RefreshEntryCondition(entry) end
     return entry.parts
 end
 

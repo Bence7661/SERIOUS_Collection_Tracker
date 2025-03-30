@@ -907,6 +907,12 @@ function UpdateDescr(section, str)
 		local itemNameColor = utils_xml.get_color("pda_white")
 		for _, entry in pairs(inventoryEntries) do
 			str = str .. "\\n" .. itemNameColor .. entry.name
+
+			if serious_collection_tracker_utils.ShouldDisplayCond(entry.obj_ref) then
+				local condColor = utils_xml.get_color_con(entry.general_cond)
+
+				str = str .. " - " .. condColor .. tostring(entry.general_cond) .. "%" .. "\\n" .. itemNameColor
+			end
 			
 			-- This will refresh parts on the entry if necessary and return the new conditions.
 			-- This way we always get up to date stats.
@@ -914,12 +920,7 @@ function UpdateDescr(section, str)
 
 			if entryParts then
 				for _, part in pairs(entryParts) do
-					local clr
-					if (part.cond < 25) then clr = utils_xml.get_color("red")
-					elseif (part.cond < 5) then clr = utils_xml.get_color("orange")
-					elseif (part.cond < 75) then clr = utils_xml.get_color("yellow")
-					else clr = utils_xml.get_color("green")
-					end
+					local clr = utils_xml.get_color_con(part.cond)
 					
 					str = str .. "\\n%c[0,170,170,170]• " .. part.name .. ": " .. clr .. part.cond_txt
 				end
