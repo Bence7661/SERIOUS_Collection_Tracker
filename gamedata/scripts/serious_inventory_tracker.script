@@ -46,10 +46,10 @@ function TakeIntoInventory(obj)
     local id = obj:id()
     local section = obj:section()
     local uiSection = ui_item.get_sec_name(section)
-    local refreshPartsBeforeAccess = false
 
     local parent = obj:parent() -- Basically the owner of the item.
     local isInsideBox = parent and IsInvbox(parent) or false
+    local refreshPartsBeforeAccess = parent and parent:id() == db.actor:id() or false
 
     if objParts then
         for prtName, cond in pairs(objParts) do
@@ -63,12 +63,6 @@ function TakeIntoInventory(obj)
                 }
             end
         end
-    end
-
-    local owner = obj:parent()
-
-    if owner and owner:id() == db.actor:id() then
-        refreshPartsBeforeAccess = true
     end
 
     inventory[uiSection] =
@@ -84,12 +78,81 @@ function TakeIntoInventory(obj)
     }
 end
 
+function BatchTakeIntoInventory(stash)
+    -- Consider duplicates!!
+    local registerQueue = {}
+
+    -- Maybe I should modify the calculation of the "winner".
+    -- Right now if there are 2 items
+    -- 1 with many low cond part 
+    -- one with all 1% parts except 1 part that is 100% 
+    -- I think I'll just take the average condition of parts and then add it to the score as well. Or average and median.
+    local function collectBest(_, item)
+        if (IsWeapon(item)) or (IsOutfit(item) or IsHeadgear(item)) or (item:section() == "wpn_upd") then
+            local registeredInvItem = GetInventoryItemEntryByUiName(item)
+            local uiName = ui_item.get_sec_name(item:section())
+            local contestantItem1 = {}
+            local contestantItem2 = {}
+    
+            local score = 0
+            local objParts = item_parts.get_parts_con(item)
+            if objParts then
+                for prtName, cond in pairs(objParts) do
+                    local uiPartName = ui_item.get_sec_name(prtName)
+                    if uiPartName ~= ui_item.get_sec_name(item:section()) then
+                        score = score + cond
+                    end
+                end
+    
+                contestantItem1 =
+                {
+                    itmObj = item,
+                    objScore = score
+                }
+            end
+    
+            if registeredInvItem then
+                score = 0
+                objParts = item_parts.get_parts_con(registeredInvItem.obj_ref)
+                if objParts then
+                    for prtName, cond in pairs(objParts) do
+                        local uiPartName = ui_item.get_sec_name(prtName)
+                        if uiPartName ~= ui_item.get_sec_name(item:section()) then
+                            score = score + cond
+                        end
+                    end
+                end
+    
+                contestantItem2 =
+                {
+                    itmObj = registeredInvItem.obj_ref,
+                    objScore = score
+                }
+            else
+                contestantItem2 = registerQueue[uiName]
+            end
+    
+            if contestantItem2 and contestantItem2.objScore > contestantItem1.objScore then
+                registerQueue[uiName] = contestantItem2
+            else
+                registerQueue[uiName] = contestantItem1
+            end
+        end
+    end
+
+    stash:iterate_inventory_box(collectBest, nil)
+
+    for _, queueItem in pairs(registerQueue) do
+        TakeIntoInventory(queueItem.itmObj)
+    end
+end
+
 function TakeFromInventory(section)
     if not section then
         return
     end
+
     local compSection = ui_item.get_sec_name(section)
-    
     inventory[compSection] = nil
 end
 
@@ -100,10 +163,10 @@ function OverWriteInventoryItem(obj)
     local partsUi = {}
     local id = obj:id()
     local section = obj:section()
-    local refreshPartsBeforeAccess = false
 
     local parent = obj:parent() -- Basically the owner of the item.
     local isInsideBox = parent and IsInvbox(parent) or false
+    local refreshPartsBeforeAccess = parent and parent:id() == db.actor:id() or false
 
     if objParts then
         for prtName, cond in pairs(objParts) do
@@ -117,11 +180,6 @@ function OverWriteInventoryItem(obj)
                 }
             end
         end
-    end
-
-    local owner = obj:parent()
-    if owner and owner:id() == db.actor:id() then
-        refreshPartsBeforeAccess = true
     end
 
     item.obj_ref = obj
@@ -139,13 +197,11 @@ end
 
 function IsInInventory(section)
     local compSection = ui_item.get_sec_name(section)
-
     return inventory[compSection] ~= nil
 end
 
 function IsExactItemInInventory(obj)
     local item = GetInventoryItemEntryByUiName(obj)
-
     if item ~= nil and item.obj_id == obj:id() then
         return true
     end
@@ -159,7 +215,6 @@ function GetExactInventoryItemEntry(obj)
     end
     
     local entry = GetInventoryItemEntryByUiName(obj)
-    
     if entry ~= nil and entry.obj_id == obj:id() then
         return entry
     end
@@ -174,7 +229,6 @@ function GetInventoryItemEntryByUiName(obj)
     
     local compSection = ui_item.get_sec_name(obj:section())
     local entry = inventory[compSection]
-    
     return entry
 end
 
@@ -186,7 +240,6 @@ function RefreshEntryParts(entry)
     end
 
     local staticParts = item_parts.get_parts_con(item)
-
     for staticPrtName, staticCond in pairs(staticParts) do
         for i, part in ipairs(entry.parts) do
             if part.name == ui_item.get_sec_name(staticPrtName) then
@@ -247,7 +300,6 @@ function ValidateAgainstCache(obj)
 
     if droppedEntryItemCache and droppedEntryItemCache.parts then
         local inventoryItem = GetExactInventoryItemEntry(droppedEntryItemCache)
-        
         if inventoryItem and inventoryItem.parts then
             --I don't check `entry.refreshParts` here. I should refresh regardless.
             droppedEntryItemCache:refreshParts()
@@ -330,7 +382,6 @@ function RipDynamicCondition(obj)
     end
 
     GetEntryParts(entry) -- Refreshes parts if `refreshPartsBeforeAccess` is true.
-
     entry.refreshPartsBeforeAccess = false
 end
 
@@ -341,7 +392,6 @@ local function ItemPutToBox(_, obj)
 
     local objId = obj:id()
     local entry = GetExactInventoryItemEntry(obj)
-    
     if entry and entry.obj_id == objId then
         entry.isInBox = true
     end
@@ -354,7 +404,6 @@ local function ItemTakenFromBox(_, obj)
 
     local objId = obj:id()
     local entry = GetExactInventoryItemEntry(obj)
-    
     if entry and entry.obj_id == objId then
         entry.isInBox = false
     end
@@ -369,63 +418,6 @@ end
 --         droppedEntryItemCache = {}
 --     end
 -- end
-
-function CustomUiBuildDescHeader(obj, sec, str)
-    local originalText = str
-    local injectedText = ""
-    local injectedTextBegin = "Collection tracker: "
-    local injectedTextEnd = " is recorded in inventory."
-    local objectMetaInfo = ""
-    local defColor = utils_xml.get_color("white", false)
-    local color = defColor
-    local newLinesBefore = ""
-    local injectText = false
-
-    if IsMelee(obj) then
-        injectText = true
-        objectMetaInfo = "CQC weapon"
-        newLinesBefore = "\\n"
-    elseif IsWeapon(obj) then
-        injectText = true
-        objectMetaInfo = "weapon"
-        newLinesBefore = "\\n \\n"
-    else
-        newLinesBefore = "\\n"
-    end
-    
-    if IsOutfit(obj) then
-        injectText = true
-        objectMetaInfo = "outfit"
-    end
-    if IsHeadgear(obj) then
-        injectText = true
-        objectMetaInfo = "headgear"
-    end
-    if obj:section() == "wpn_upd" then
-        injectText = true
-        objectMetaInfo = "unknown"
-    end
-
-    if IsExactItemInInventory(obj) then
-        color = utils_xml.get_color("green", false)
-        injectedText = defColor .. injectedTextBegin .. color .. " This " .. objectMetaInfo .. injectedTextEnd
-    elseif IsInInventory(obj:section()) then
-        color = utils_xml.get_color("yellow", false)
-        injectedText = defColor .. injectedTextBegin .. color .. " Similar " .. objectMetaInfo .. injectedTextEnd
-    else
-        color = utils_xml.get_color("red", false)
-        injectedText = defColor .. injectedTextBegin .. color .. " No records found."
-    end
-
-    if injectText then
-        str = newLinesBefore .. injectedText .. "\\n \\n" .. defColor .. originalText
-    end
-
-    return UiOriginalBuildDescHeader(obj, sec, str)
-end
-
-function UiOriginalBuildDescHeader(obj, sec, str)
-end
 
 function on_game_start()
     RegisterScriptCallback("save_state", save_state)
@@ -442,7 +434,4 @@ function on_game_start()
     -- Everything else should turn off dynamic condition.
     RegisterScriptCallback("actor_on_item_take", DynamicCondition) -- ON
     RegisterScriptCallback("actor_on_item_drop", RipDynamicCondition) -- OFF
-
-    UiOriginalBuildDescHeader = ui_item.build_desc_header
-    ui_item.build_desc_header = CustomUiBuildDescHeader
 end

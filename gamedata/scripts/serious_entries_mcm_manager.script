@@ -1,0 +1,29 @@
+local function McmResetToggle_DeleteEntries_CurrSaveScope()
+    if ui_mcm then
+        ui_mcm.set("serious_collection_tracker/delete_entries", false)
+    end
+end
+
+local function DeleteEntries_CurrSaveScope()
+    if ui_mcm then
+        local optionCurrVal = ui_mcm.get("serious_collection_tracker/delete_entries")
+
+        if optionCurrVal then -- Only if true we'll trigger this.
+            -- Code to delete entries here
+            local msg = "All inventory entries removed."
+
+            CreateTimeEvent("entries_mcm_manager", "news_save_inv_deleted", 0, DelayedPdaNews, msg) -- So it's not sent while pause menu is open.
+            ui_mcm.set("serious_collection_tracker/delete_entries", false)
+        end
+    end
+end
+
+function DelayedPdaNews(msg)
+    news_manager.send_tip(db.actor, msg, nil, "ui_icon_news_trx_communication", 2000)
+    return true
+end
+
+function on_game_start()
+    RegisterScriptCallback("actor_on_first_update", McmResetToggle_DeleteEntries_CurrSaveScope)
+    RegisterScriptCallback("on_option_change", DeleteEntries_CurrSaveScope)
+end

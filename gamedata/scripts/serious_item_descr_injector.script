@@ -1,0 +1,61 @@
+function CustomUiBuildDescHeader(obj, sec, str)
+    local originalText = str
+    local injectedText = ""
+    local injectedTextBegin = "Collection tracker: "
+    local injectedTextEnd = " is recorded in inventory."
+    local objectMetaInfo = ""
+    local defColor = utils_xml.get_color("white", false)
+    local color = defColor
+    local newLinesBefore = ""
+    local injectText = false
+
+    if IsMelee(obj) then
+        injectText = true
+        objectMetaInfo = "CQC weapon"
+        newLinesBefore = "\\n"
+    elseif IsWeapon(obj) then
+        injectText = true
+        objectMetaInfo = "weapon"
+        newLinesBefore = "\\n \\n"
+    else
+        newLinesBefore = "\\n"
+    end
+    
+    if IsOutfit(obj) then
+        injectText = true
+        objectMetaInfo = "outfit"
+    end
+    if IsHeadgear(obj) then
+        injectText = true
+        objectMetaInfo = "headgear"
+    end
+    if obj:section() == "wpn_upd" then
+        injectText = true
+        objectMetaInfo = "unknown"
+    end
+
+    if serious_inventory_tracker.IsExactItemInInventory(obj) then
+        color = utils_xml.get_color("green", false)
+        injectedText = defColor .. injectedTextBegin .. color .. " This " .. objectMetaInfo .. injectedTextEnd
+    elseif serious_inventory_tracker.IsInInventory(obj:section()) then
+        color = utils_xml.get_color("yellow", false)
+        injectedText = defColor .. injectedTextBegin .. color .. " Similar " .. objectMetaInfo .. injectedTextEnd
+    else
+        color = utils_xml.get_color("red", false)
+        injectedText = defColor .. injectedTextBegin .. color .. " No records found."
+    end
+
+    if injectText then
+        str = newLinesBefore .. injectedText .. "\\n \\n" .. defColor .. originalText
+    end
+
+    return UiOriginalBuildDescHeader(obj, sec, str)
+end
+
+function UiOriginalBuildDescHeader(_, _, _)
+end
+
+function on_game_start()
+    UiOriginalBuildDescHeader = ui_item.build_desc_header
+    ui_item.build_desc_header = CustomUiBuildDescHeader
+end

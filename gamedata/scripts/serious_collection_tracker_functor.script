@@ -80,8 +80,38 @@ function overwrite_inventory_item(obj, _, _)
 end
 -- OverwriteInventoryItem
 
+-- Batch register
+function batch_inv_appear_cond(obj, bag, mode)
+    if bag == "npc_bag" and mode == "loot" then
+        local parent = obj and obj:parent()
+        
+        if parent and IsInvbox(parent) then
+            if (IsWeapon(obj)) or (IsOutfit(obj) or IsHeadgear(obj)) or (obj:section() == "wpn_upd") then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+function batch_inv_opt(_, _, _)
+	return "batch inventory"
+end
+
+function take_batch_inventory(obj, _, _)
+    if not obj then
+        return
+    end
+
+    local stash = obj:parent()
+    serious_inventory_tracker.BatchTakeIntoInventory(stash)
+end
+-- Batch register
+
 function on_game_start()
 	custom_functor_autoinject.add_functor("serious_take_to_inventory", take_into_inv_appear_cond, take_into_inv_opt, nil, take_into_inventory, true)
 	custom_functor_autoinject.add_functor("serious_take_from_inventory", take_from_inv_appear_cond, take_from_inv_opt, nil, take_from_inventory, true)
 	custom_functor_autoinject.add_functor("serious_overwrite_inventory_item", overwrite_inv_item_appear_cond, overwrite_inv_item_opt, nil, overwrite_inventory_item, true)
+	custom_functor_autoinject.add_functor("serious_batch_inventory", batch_inv_appear_cond, batch_inv_opt, nil, take_batch_inventory, true)
 end

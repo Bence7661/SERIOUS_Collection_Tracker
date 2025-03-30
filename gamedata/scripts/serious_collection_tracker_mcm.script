@@ -1,0 +1,16 @@
+function get_config(key)
+  if ui_mcm then return ui_mcm.get("serious_collection_tracker/"..key) else return defaults[key] end
+end
+
+function on_mcm_load()
+    op = { 
+      id = "serious_collection_tracker",
+      sh = true,
+      gr =
+        {  -- options tree goes here
+          { id = "sld", type = "slide", text = "ui_mcm_collection_tracker_sld_text", link = "ui_options_slider_news", size = {512, 50}, spacing = 20},
+          { id = "delete_entries",  type = "check", val = 1, def = false},
+        }
+      }
+    return op
+  end

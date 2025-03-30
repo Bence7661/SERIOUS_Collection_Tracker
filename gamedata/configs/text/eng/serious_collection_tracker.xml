@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="windows-1251"?>
+<string_table>
+    <string id="ui_mcm_menu_serious_collection_tracker">
+        <text>Collection Tracker</text>
+    </string>
+
+    <string id="ui_mcm_collection_tracker_sld">
+        <text>Collection Tracker</text>
+    </string>
+
+    <string id="ui_mcm_collection_tracker_sld_text">
+        <text>Collection Tracker</text>
+    </string>
+
+    <string id="ui_mcm_serious_collection_tracker_delete_entries">
+        <text>Delete all inventory entries for the currently loaded save</text>
+    </string>
+
+    <string id="ui_mcm_serious_collection_tracker_delete_entries_desc">
+        <text>Usage: Load a save then toggle this option to true.</text>
+    </string>
+</string_table>
