@@ -88,55 +88,60 @@ function BatchTakeIntoInventory(stash)
     -- one with all 1% parts except 1 part that is 100% 
     -- I think I'll just take the average condition of parts and then add it to the score as well. Or average and median.
     local function collectBest(_, item)
-        if (IsWeapon(item)) or (IsOutfit(item) or IsHeadgear(item)) or (item:section() == "wpn_upd") then
+        if (IsWeapon(item)) or (IsOutfit(item) or IsHeadgear(item)) or (item:section() == "wpn_upd") then --KNIVES WILL CRASH THIS
             local registeredInvItem = GetInventoryItemEntryByUiName(item)
-            local uiName = ui_item.get_sec_name(item:section())
-            local contestantItem1 = {}
-            local contestantItem2 = {}
-    
-            local score = 0
-            local objParts = item_parts.get_parts_con(item)
-            if objParts then
-                for prtName, cond in pairs(objParts) do
-                    local uiPartName = ui_item.get_sec_name(prtName)
-                    if uiPartName ~= ui_item.get_sec_name(item:section()) then
-                        score = score + cond
-                    end
-                end
-    
-                contestantItem1 =
+            if item:id() ~= (registeredInvItem and registeredInvItem.obj_id) then
+                    
+                local uiName = ui_item.get_sec_name(item:section())
+                local contestantItem1 =
                 {
-                    itmObj = item,
-                    objScore = score
+                    itmObj = item or nil,
+                    score = -1
                 }
-            end
-    
-            if registeredInvItem then
-                score = 0
-                objParts = item_parts.get_parts_con(registeredInvItem.obj_ref)
+                local contestantItem2 =
+                {
+                    itmObj = registeredInvItem and registeredInvItem.obj_ref or registerQueue[uiName].itmObj or nil,
+                    score = -1
+                }
+        
+                local tempScore = 0
+                local objParts = item_parts.get_parts_con(item)
                 if objParts then
                     for prtName, cond in pairs(objParts) do
                         local uiPartName = ui_item.get_sec_name(prtName)
                         if uiPartName ~= ui_item.get_sec_name(item:section()) then
-                            score = score + cond
+                            tempScore = tempScore + cond
                         end
                     end
+                    
+                    contestantItem1.score = tempScore
                 end
-    
-                contestantItem2 =
-                {
-                    itmObj = registeredInvItem.obj_ref,
-                    objScore = score
-                }
-            else
-                contestantItem2 = registerQueue[uiName]
+                
+                if contestantItem2.itmObj then
+                    tempScore = 0
+                    objParts = item_parts.get_parts_con(contestantItem2.itmObj)
+                    if objParts then
+                        for prtName, cond in pairs(objParts) do
+                            local uiPartName = ui_item.get_sec_name(prtName)
+                            if uiPartName ~= ui_item.get_sec_name(item:section()) then
+                                tempScore = tempScore + cond
+                            end
+                        end
+                    end
+
+                    contestantItem2.score = tempScore
+                else
+                    contestantItem2 = registerQueue[uiName]
+                end
+        
+                if contestantItem2 and contestantItem2.score > contestantItem1.score then
+                    registerQueue[uiName] = contestantItem2
+                else
+                    TakeFromInventory(item:section()) -- Idempotent
+                    registerQueue[uiName] = contestantItem1
+                end
             end
-    
-            if contestantItem2 and contestantItem2.objScore > contestantItem1.objScore then
-                registerQueue[uiName] = contestantItem2
-            else
-                registerQueue[uiName] = contestantItem1
-            end
+
         end
     end
 
@@ -413,9 +418,27 @@ end
 -- local function FlushInventory(key)
 --     if key == DIK_keys.DIK_X then
 --         FileLogger.log("Flushing inventory")
-
+        
 --         inventory = {}
 --         droppedEntryItemCache = {}
+--     end
+-- end
+
+-- local function RandomPartsCondForInvWeapons(key)
+--     if key == DIK_keys.DIK_C then
+--         FileLogger.log("Randomizing weapon part conditions")
+
+--         db.actor:iterate_inventory(function(_, item)
+--             if not IsMelee(item) and IsWeapon(item) then
+--                 local parts = item_parts.get_parts_con(item)
+
+--                 for name, _ in pairs(parts) do
+--                     parts[name] = math.random(1, 100)
+--                 end
+
+--                 item_parts.set_parts_con(item:id(), parts)
+--             end
+--         end, nil)
 --     end
 -- end
 
@@ -429,9 +452,11 @@ function on_game_start()
     RegisterScriptCallback("actor_on_item_put_in_box", ItemPutToBox)
     RegisterScriptCallback("actor_on_item_take_from_box", ItemTakenFromBox)
     
-    -- RegisterScriptCallback("on_key_press", FlushInventory)
-    
     -- Everything else should turn off dynamic condition.
     RegisterScriptCallback("actor_on_item_take", DynamicCondition) -- ON
     RegisterScriptCallback("actor_on_item_drop", RipDynamicCondition) -- OFF
+
+    -- Debug stuff.
+    -- RegisterScriptCallback("on_key_press", FlushInventory)
+    -- RegisterScriptCallback("on_key_press", RandomPartsCondForInvWeapons)
 end
