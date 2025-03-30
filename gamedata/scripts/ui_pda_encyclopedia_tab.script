@@ -911,14 +911,14 @@ function UpdateDescr(section, str)
 			if serious_collection_tracker_utils.ShouldDisplayCond(entry.obj_ref) then
 				local condColor = utils_xml.get_color_con(entry.general_cond)
 
-				str = str .. " - " .. condColor .. tostring(entry.general_cond) .. "%" .. "\\n" .. itemNameColor
+				str = str .. " - " .. condColor .. tostring(math.floor(entry.general_cond)) .. "%" .. "\\n" .. itemNameColor
 			end
 			
 			-- This will refresh parts on the entry if necessary and return the new conditions.
 			-- This way we always get up to date stats.
 			local entryParts = serious_inventory_tracker.GetEntryParts(entry)
 
-			if entryParts then
+			if entryParts and not CollectionTrackerConfig.Get("slim_entries") then
 				for _, part in pairs(entryParts) do
 					local clr = utils_xml.get_color_con(part.cond)
 					

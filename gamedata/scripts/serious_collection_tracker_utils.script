@@ -1,3 +1,5 @@
+local config = CollectionTrackerConfig
+
 function HasParts(obj)
     if not obj then return false end
 
@@ -8,12 +10,16 @@ end
 function ShouldDisplayCond(obj)
     if not obj then return false end
 
+    if not config.Get("disp_general_cond") then
+        return false
+    end
+
     if IsMelee(obj) or IsOutfit(obj) or IsHeadgear(obj) then return true end
     if IsWeapon(obj) then return false end
 end
 
 function IsRelevantItem(obj)
-    if not IsWeapon(obj) and not IsOutfit(obj) and not IsHeadgear(obj) and obj:section() ~= "wpn_upd" then
+    if not IsWeapon(obj) and not IsMelee(obj) and not IsOutfit(obj) and not IsHeadgear(obj) and obj:section() ~= "wpn_upd" then
        return false
     end
 

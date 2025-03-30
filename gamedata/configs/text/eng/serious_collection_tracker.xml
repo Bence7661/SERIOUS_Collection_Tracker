@@ -12,6 +12,22 @@
         <text>Collection Tracker</text>
     </string>
 
+    <string id="ui_mcm_serious_collection_tracker_slim_entries">
+        <text>Slim entries</text>
+    </string>
+
+    <string id="ui_mcm_serious_collection_tracker_slim_entries_desc">
+        <text>Parts and part conditions will not be shown.</text>
+    </string>
+
+    <string id="ui_mcm_serious_collection_tracker_disp_general_cond">
+        <text>Display general item condition</text>
+    </string>
+
+    <string id="ui_mcm_serious_collection_tracker_disp_general_cond_desc">
+        <text>General item condition will be shown next to the item's name (except weapons).</text>
+    </string>
+
     <string id="ui_mcm_serious_collection_tracker_delete_entries">
         <text>Delete all inventory entries for the currently loaded save</text>
     </string>

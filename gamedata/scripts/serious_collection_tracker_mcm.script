@@ -7,8 +7,10 @@ function on_mcm_load()
       id = "serious_collection_tracker",
       sh = true,
       gr =
-        {  -- options tree goes here
+        {
           { id = "sld", type = "slide", text = "ui_mcm_collection_tracker_sld_text", link = "ui_options_slider_news", size = {512, 50}, spacing = 20},
+          { id = "slim_entries",  type = "check", val = 1, def = false},
+          { id = "disp_general_cond",  type = "check", val = 1, def = false},
           { id = "delete_entries",  type = "check", val = 1, def = false},
         }
       }
