@@ -32,7 +32,7 @@ function take_into_inventory(obj, _, _)
         return
     end
 
-    serious_inventory_tracker.TakeIntoInventory(obj)
+    serious_inventory_tracker.UpsertInventoryEntry(obj)
 end
 -- TakeIntoInventory
 
@@ -76,7 +76,7 @@ function overwrite_inventory_item(obj, _, _)
         return
     end
     
-    serious_inventory_tracker.OverWriteInventoryItem(obj)
+    serious_inventory_tracker.UpsertInventoryEntry(obj)
 end
 -- OverwriteInventoryItem
 

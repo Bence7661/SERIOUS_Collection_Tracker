@@ -1,4 +1,10 @@
+local config = CollectionTrackerConfig
+local utils = serious_collection_tracker_utils
+local invTracker = serious_inventory_tracker
+
 function CustomUiBuildDescHeader(obj, sec, str)
+    if not utils.IsRelevantItem(obj) then return UiOriginalBuildDescHeader(obj, sec, str) end
+
     local originalText = str
     local injectedText = ""
     local injectedTextBegin = "Collection tracker: "
@@ -34,26 +40,26 @@ function CustomUiBuildDescHeader(obj, sec, str)
         objectMetaInfo = "unknown"
     end
 
-    --DBG
-    -- local objParts = item_parts.get_parts_con(obj) 
-    -- local score = 0
+    if config.IsDebug() then
+        local objParts = item_parts.get_parts_con(obj) 
+        local score = 0
+    
+        if objParts then
+            for prtName, cond in pairs(objParts) do
+                local uiPartName = ui_item.get_sec_name(prtName)
+                if uiPartName ~= ui_item.get_sec_name(obj:section()) then
+                    score = score + cond
+                end
+            end
+        end
+    
+        injectedTextBegin = injectedTextBegin .. "Id: " .. obj:id() .. " Score: " .. score
+    end
 
-    -- if objParts then
-    --     for prtName, cond in pairs(objParts) do
-    --         local uiPartName = ui_item.get_sec_name(prtName)
-    --         if uiPartName ~= ui_item.get_sec_name(obj:section()) then
-    --             score = score + cond
-    --         end
-    --     end
-    -- end
-
-    -- injectedTextBegin = injectedTextBegin .. "Id: " .. obj:id() .. " Score: " .. score
-    --DBG
-
-    if serious_inventory_tracker.IsExactItemInInventory(obj) then
+    if invTracker.IsExactItemInInventory(obj) then
         color = utils_xml.get_color("green", false)
         injectedText = defColor .. injectedTextBegin .. color .. " This " .. objectMetaInfo .. injectedTextEnd
-    elseif serious_inventory_tracker.IsInInventory(obj:section()) then
+    elseif invTracker.IsInInventory(obj:section()) then
         color = utils_xml.get_color("yellow", false)
         injectedText = defColor .. injectedTextBegin .. color .. " Similar " .. objectMetaInfo .. injectedTextEnd
     else

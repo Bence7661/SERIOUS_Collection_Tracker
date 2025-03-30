@@ -32,30 +32,32 @@
     }
 --]]
 
+-- I don't want to create MCM option, because debug mode assigns debug functions to keypresses like: X, C
+-- C for example randomizes all weapon part conditions for weapons inside player inventory.
+local config = CollectionTrackerConfig
+local utils = serious_collection_tracker_utils
 local inventory = {}
 local droppedEntryItemCache = {}
 local delayedMarkInventoryEntryPersistentEvents = 0
 
-function TakeIntoInventory(obj)
-    if not obj then
-        return
-    end
-  
-    local objParts = item_parts.get_parts_con(obj)
-    local partsUi = {}
+function UpsertInventoryEntry(obj)
+    if not obj then return false end
+
+    local item = GetInventoryItemEntryByUiName(obj)
     local id = obj:id()
+    local entryItemParts = {}
     local section = obj:section()
     local uiSection = ui_item.get_sec_name(section)
+    local isInsideBox = utils.IsInsideBox(obj)
+    local refreshPartsBeforeAccess = utils.IsInPlayerBag(obj)
 
-    local parent = obj:parent() -- Basically the owner of the item.
-    local isInsideBox = parent and IsInvbox(parent) or false
-    local refreshPartsBeforeAccess = parent and parent:id() == db.actor:id() or false
+    if utils.HasParts(obj) then
+        local objParts = item_parts.get_parts_con(obj)
 
-    if objParts then
         for prtName, cond in pairs(objParts) do
             local uiPartName = ui_item.get_sec_name(prtName)
             if uiPartName ~= ui_item.get_sec_name(section) then
-                partsUi[#partsUi + 1] =
+                entryItemParts[#entryItemParts + 1] =
                 {
                     name = uiPartName,
                     cond = cond,
@@ -73,7 +75,7 @@ function TakeIntoInventory(obj)
         obj_section = section,
         isPersistent = true,
         isInBox = isInsideBox,
-        parts = partsUi,
+        parts = entryItemParts,
         refreshPartsBeforeAccess = refreshPartsBeforeAccess
     }
 end
@@ -82,7 +84,7 @@ function BatchTakeIntoInventory(stash)
     local registerQueue = {}
 
     local function collectBest(_, item)
-        if (IsWeapon(item)) or (IsOutfit(item) or IsHeadgear(item)) or (item:section() == "wpn_upd") then
+        if utils.IsRelevantItem(item) then
             local registeredInvItem = GetInventoryItemEntryByUiName(item)
             if item:id() ~= (registeredInvItem and registeredInvItem.obj_id) then
                 local uiName = ui_item.get_sec_name(item:section())
@@ -103,7 +105,7 @@ function BatchTakeIntoInventory(stash)
     stash:iterate_inventory_box(collectBest, nil)
 
     for _, queueItem in pairs(registerQueue) do
-        TakeIntoInventory(queueItem)
+        UpsertInventoryEntry(queueItem)
     end
 end
 
@@ -114,41 +116,6 @@ function TakeFromInventory(section)
 
     local compSection = ui_item.get_sec_name(section)
     inventory[compSection] = nil
-end
-
-function OverWriteInventoryItem(obj)
-    local item = GetInventoryItemEntryByUiName(obj)
-
-    local objParts = item_parts.get_parts_con(obj)
-    local partsUi = {}
-    local id = obj:id()
-    local section = obj:section()
-
-    local parent = obj:parent() -- Basically the owner of the item.
-    local isInsideBox = parent and IsInvbox(parent) or false
-    local refreshPartsBeforeAccess = parent and parent:id() == db.actor:id() or false
-
-    if objParts then
-        for prtName, cond in pairs(objParts) do
-            local uiPartName = ui_item.get_sec_name(prtName)
-            if uiPartName ~= ui_item.get_sec_name(section) then
-                partsUi[#partsUi + 1] =
-                {
-                    name = uiPartName,
-                    cond = cond,
-                    cond_txt = tostring(cond) .. "%"
-                }
-            end
-        end
-    end
-
-    item.obj_ref = obj
-    item.obj_id = id
-    item.obj_section = section
-    item.isPersistent = true
-    item.isInBox = isInsideBox
-    item.parts = partsUi
-    item.refreshPartsBeforeAccess = refreshPartsBeforeAccess
 end
 
 function GetInventory()
@@ -200,6 +167,9 @@ function RefreshEntryParts(entry)
     end
 
     local staticParts = item_parts.get_parts_con(item)
+
+    --Knives crash this.
+    --if not staticParts then 
     for staticPrtName, staticCond in pairs(staticParts) do
         for i, part in ipairs(entry.parts) do
             if part.name == ui_item.get_sec_name(staticPrtName) then
@@ -219,6 +189,13 @@ function GetEntryParts(entry)
     return entry.parts
 end
 
+function DeleteEntriesForCurrSave()
+    inventory = {}
+    droppedEntryItemCache = {}
+
+    utils.SendPdaNews("All inventory entries removed.", 2000, 0)
+end
+
 -- General callbacks
 function LoseInventoryEntry(obj, _, _)
     if IsExactItemInInventory(obj) then
@@ -226,10 +203,8 @@ function LoseInventoryEntry(obj, _, _)
     end
 end
 
-function ValidateAgainstCache(obj)
-    if not IsWeapon(obj) and not IsOutfit(obj) and not IsHeadgear(obj) and obj:section() ~= "wpn_upd" then -- Ignore anything unrelated.
-        return
-    end
+function ValidateAgainstCache(obj) -- Knives
+    if not utils.IsRelevantItem(obj) then return end
 
     if droppedEntryItemCache and droppedEntryItemCache.parts then
         local inventoryItem = GetExactInventoryItemEntry(droppedEntryItemCache)
@@ -261,7 +236,7 @@ function MarkInventoryEntryNonPersistent(obj)
     end
 
     local entry = GetExactInventoryItemEntry(obj)
-    if (IsWeapon(obj)) or (IsOutfit(obj) or IsHeadgear(obj)) or (obj:section() == "wpn_upd") then -- Make sure we don't cache attachments.
+    if utils.IsRelevantItem(obj) then -- Make sure we don't cache attachments.
         if entry and not entry.isInBox then
             entry.isPersistent = false
             droppedEntryItemCache = entry
@@ -333,7 +308,7 @@ end
 -- General callbacks
 
 -- Performance
-function DynamicCondition(obj)
+function DynamicCondition_ON(obj)
     local entry = GetExactInventoryItemEntry(obj)
     if not entry then
         return
@@ -342,7 +317,7 @@ function DynamicCondition(obj)
     entry.refreshPartsBeforeAccess = true
 end
 
-function RipDynamicCondition(obj)
+function DynamicCondition_OFF(obj)
     local entry = GetExactInventoryItemEntry(obj)
     if not entry then
         return
@@ -374,31 +349,38 @@ end
 -- Save/Load
 
 -- Debug
-local function FlushInventory(key)
-    if key == DIK_keys.DIK_X then
-        FileLogger.log("Flushing inventory")
-        
-        inventory = {}
-        droppedEntryItemCache = {}
-    end
+-- No, not that SeriLog. Just a wrapper so ppl won't crash and I can leave logger calls in the mod for myself.
+function SeriLog(msg, ...)
+    if FileLogger then FileLogger.log(msg, ...) end
+
+    local formattedMessage = string.format(msg, ...)
+    utils.SendPdaNews(formattedMessage, 2000, nil)
 end
 
-local function RandomPartsCondForInvWeapons(key)
-    if key == DIK_keys.DIK_C then
-        FileLogger.log("Randomizing weapon part conditions")
-        
-        db.actor:iterate_inventory(function(_, item)
-            if not IsMelee(item) and IsWeapon(item) then
-                local parts = item_parts.get_parts_con(item)
-                
-                for name, _ in pairs(parts) do
-                    parts[name] = math.random(1, 100)
-                end
-                
-                item_parts.set_parts_con(item:id(), parts)
+local function FlushInventory()
+    SeriLog("Flushing inventory")
+    DeleteEntriesForCurrSave()
+end
+
+local function RandomPartsCondForInvWeapons()
+    SeriLog("Randomizing weapon part conditions")
+    
+    db.actor:iterate_inventory(function(_, item)
+        if not IsMelee(item) and IsWeapon(item) then
+            local parts = item_parts.get_parts_con(item)
+            
+            for name, _ in pairs(parts) do
+                parts[name] = math.random(1, 100)
             end
-        end, nil)
-    end
+            
+            item_parts.set_parts_con(item:id(), parts)
+        end
+    end, nil)
+end
+
+local function onKeyPressCallback(key)
+    if key == DIK_keys.DIK_X then FlushInventory() end
+    if key == DIK_keys.DIK_C then RandomPartsCondForInvWeapons() end
 end
 -- Debug
 
@@ -412,14 +394,13 @@ function on_game_start()
     RegisterScriptCallback("actor_on_item_take_from_box", ItemTakenFromBox)
     
     -- Performance
-    RegisterScriptCallback("actor_on_item_take", DynamicCondition) -- ON
-    RegisterScriptCallback("actor_on_item_drop", RipDynamicCondition) -- OFF
+    RegisterScriptCallback("actor_on_item_take", DynamicCondition_ON)
+    RegisterScriptCallback("actor_on_item_drop", DynamicCondition_OFF)
 
     --Save/Load
     RegisterScriptCallback("save_state", save_state)
     RegisterScriptCallback("load_state", load_state)
     
-    -- -- Debug
-    -- RegisterScriptCallback("on_key_press", FlushInventory)
-    -- RegisterScriptCallback("on_key_press", RandomPartsCondForInvWeapons)
+    -- Debug
+    if config.IsDebug() then RegisterScriptCallback("on_key_press", onKeyPressCallback) end
 end

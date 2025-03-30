@@ -1,0 +1,42 @@
+function HasParts(obj)
+    if IsMelee(obj) then return false end
+    if IsWeapon(obj) or IsOutfit(obj) or IsHeadgear(obj) then return true end
+end
+
+function IsRelevantItem(obj)
+    if not IsWeapon(obj) and not IsOutfit(obj) and not IsHeadgear(obj) and obj:section() ~= "wpn_upd" then
+       return false 
+    end
+
+    return true
+end
+
+function IsInsideBox(obj)
+    if not obj then return false end
+
+    local parent = obj:parent()
+    return parent and IsInvbox(parent) or false
+end
+
+function IsInPlayerBag(obj)
+    if not obj then return false end
+
+    local parent = obj:parent()
+    return parent and parent:id() == db.actor:id() or false
+end
+
+function SendPdaNews(msg, dispDuration, delay)
+    if StringIsNullOrEmpty(msg) then return false end
+
+    if delay and delay >= 0 then
+        CreateTimeEvent("collection_tracker_utils", "delayed_pda_news", 0, SendPdaNews, msg, dispDuration, nil)
+        return
+    end
+
+    news_manager.send_tip(db.actor, msg, nil, "ui_icon_news_trx_communication", dispDuration)
+    return true
+end
+
+function StringIsNullOrEmpty(str)
+    return str == nil or str:match("^%s*$") ~= nil
+end
