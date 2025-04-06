@@ -1,5 +1,10 @@
 local config = CollectionTrackerConfig
 
+function HasCondition(entry) return entry and entry.general_cond end
+function ShouldDisplayCond(entry) return entry and config.Get("disp_general_cond") and HasCondition(entry) end
+function StringIsNullOrEmpty(str) return str == nil or str:match("^%s*$") ~= nil end
+function IsFirearm(obj) return obj and IsWeapon(obj) and not IsMelee(obj) end
+
 function HasParts(obj)
     if not obj then return false end
 
@@ -7,24 +12,8 @@ function HasParts(obj)
     if IsWeapon(obj) or IsOutfit(obj) or IsHeadgear(obj) then return true end
 end
 
-function HasCondition(obj)
-    if not obj then return false end
-    
-    if IsMelee(obj) or IsOutfit(obj) or IsHeadgear(obj) then return true end
-    if IsWeapon(obj) then return false end
-end
-
-function ShouldDisplayCond(obj)
-    if not obj then return false end
-
-    if not HasCondition(obj) then
-        return false
-    end
-
-    return config.Get("disp_general_cond")
-end
-
 function IsRelevantItem(obj)
+    if not obj then return false end
     if not IsWeapon(obj) and not IsMelee(obj) and not IsOutfit(obj) and not IsHeadgear(obj) then
        return false
     end
@@ -58,6 +47,24 @@ function SendPdaNews(msg, dispDuration, delay)
     return true
 end
 
-function StringIsNullOrEmpty(str)
-    return str == nil or str:match("^%s*$") ~= nil
+function IsEntryObjFirearm(entry)
+    if not entry then return false end
+    local id = entry.obj_id
+    local objRef = id and get_object_by_id(id) or nil
+
+    return IsFirearm(objRef)
+end
+
+--Each version will add stuff to this if the data structure changes.
+function UpdateDataStructure()
+    local inventory = serious_collection_tracker.GetInventory()
+    if not inventory then return end
+
+    for _, entry in pairs(inventory) do
+        entry.obj_ref = nil
+
+        if IsEntryObjFirearm(entry) then
+            entry.general_cond = false
+        end
+    end
 end

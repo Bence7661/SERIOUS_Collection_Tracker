@@ -12,6 +12,10 @@
         <text>Collection Tracker</text>
     </string>
 
+    <string id="ui_mm_header_options">
+        <text>Options</text>
+    </string>
+
     <string id="ui_mcm_serious_collection_tracker_slim_entries">
         <text>Slim entries</text>
     </string>
@@ -28,11 +32,30 @@
         <text>General item condition will be shown next to the item's name (except weapons).</text>
     </string>
 
+    <string id="ui_mm_header_utils">
+        <text>Utilities</text>
+    </string>
+
     <string id="ui_mcm_serious_collection_tracker_delete_entries">
         <text>Delete all inventory entries for the currently loaded save</text>
     </string>
 
     <string id="ui_mcm_serious_collection_tracker_delete_entries_desc">
         <text>Usage: Load a save then toggle this option to true.</text>
+    </string>
+
+    <string id="ui_mcm_serious_collection_tracker_update_data_structure">
+        <text>Update data structure</text>
+    </string>
+
+    <string id="ui_mcm_serious_collection_tracker_update_data_structure_desc">
+        <text>
+        Usage: Load a save then toggle this option to true. 
+        This will perform an update on the data of the PDA inventory entries.\n
+        \nNote: Run this whenever you update the mod.
+        \n• This WILL NOT delete your entries.
+        \n• You need to be on the same map where the registered items are physically located.
+        \n• If you have them scattered on more maps then you have to do this on each map.
+        </text>
     </string>
 </string_table>

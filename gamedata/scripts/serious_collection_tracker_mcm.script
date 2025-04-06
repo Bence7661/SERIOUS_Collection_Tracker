@@ -9,9 +9,13 @@ function on_mcm_load()
       gr =
         {
           { id = "sld", type = "slide", text = "ui_mcm_collection_tracker_sld_text", link = "ui_options_slider_news", size = {512, 50}, spacing = 20},
+          { id = "options_title", type= "title", text= "ui_mm_header_options", align= "l", clr= {255,200,200,200}},
           { id = "slim_entries",  type = "check", val = 1, def = false},
           { id = "disp_general_cond",  type = "check", val = 1, def = false},
+          { id = "divider", type= "line"},
+          { id = "utils_title", type= "title", text= "ui_mm_header_utils", align= "l", clr= {255,200,200,200}},
           { id = "delete_entries",  type = "check", val = 1, def = false},
+          { id = "update_data_structure",  type = "check", val = 1, def = false},
         }
       }
     return op

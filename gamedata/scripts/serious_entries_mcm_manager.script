@@ -1,22 +1,60 @@
-local function McmResetToggle_DeleteEntries_CurrSaveScope()
+local utils = serious_collection_tracker_utils
+local pdaNewsQueue = {}
+
+local function McmResetToggle_FuncTriggers()
     if ui_mcm then
         ui_mcm.set("serious_collection_tracker/delete_entries", false)
+        ui_mcm.set("serious_collection_tracker/update_data_structure", false)
     end
 end
 
 local function DeleteEntries_CurrSaveScope()
-    if ui_mcm then
-        local optionCurrVal = ui_mcm.get("serious_collection_tracker/delete_entries")
+    local optionCurrVal = ui_mcm.get("serious_collection_tracker/delete_entries")
 
-        if optionCurrVal then -- Only if true we'll trigger this.
-            serious_collection_tracker.DeleteEntriesForCurrSave()
+    if optionCurrVal then -- Only if true we'll trigger this.
+        serious_collection_tracker.DeleteEntriesForCurrSave()
 
-            ui_mcm.set("serious_collection_tracker/delete_entries", false)
-        end
+        ui_mcm.set("serious_collection_tracker/delete_entries", false)
+        pdaNewsQueue[#pdaNewsQueue + 1] = "All inventory entries removed."
     end
 end
 
+local function UpdateDataStructure()
+    local optionCurrVal = ui_mcm.get("serious_collection_tracker/update_data_structure")
+
+    if optionCurrVal then -- Only if true we'll trigger this.
+        serious_collection_tracker_utils.UpdateDataStructure()
+
+        ui_mcm.set("serious_collection_tracker/update_data_structure", false)
+        pdaNewsQueue[#pdaNewsQueue + 1] = "Data structure updated."
+    end
+end
+
+local function OnOptionChange()
+    if ui_mcm then
+        DeleteEntries_CurrSaveScope()
+        UpdateDataStructure()
+
+        if pdaNewsQueue and #pdaNewsQueue > 1 then
+            local clrYellow = utils_xml.get_color("pda_yellow")
+            local clrWhite = utils_xml.get_color("pda_white")
+            local pdaMsg = clrYellow .. "Utilities ran:"
+            local msgDispTime = 2000 * #pdaNewsQueue
+
+            for _, msg in ipairs(pdaNewsQueue) do
+                pdaMsg = pdaMsg .. clrWhite .. " \\n• " .. msg
+            end
+
+            utils.SendPdaNews(pdaMsg, msgDispTime, 0)
+        elseif pdaNewsQueue then
+            utils.SendPdaNews(pdaNewsQueue[1], 2000, 0)
+        end
+    end
+
+    pdaNewsQueue = {}
+end
+
 function on_game_start()
-    RegisterScriptCallback("actor_on_first_update", McmResetToggle_DeleteEntries_CurrSaveScope)
-    RegisterScriptCallback("on_option_change", DeleteEntries_CurrSaveScope)
+    RegisterScriptCallback("actor_on_first_update", McmResetToggle_FuncTriggers)
+    RegisterScriptCallback("on_option_change", OnOptionChange)
 end

@@ -908,7 +908,7 @@ function UpdateDescr(section, str)
 		for _, entry in pairs(inventoryEntries) do
 			str = str .. "\\n" .. itemNameColor .. entry.name
 
-			if serious_collection_tracker_utils.ShouldDisplayCond(entry.obj_ref) then
+			if serious_collection_tracker_utils.ShouldDisplayCond(entry) then
 				local condColor = utils_xml.get_color_con(entry.general_cond)
 
 				str = str .. " - " .. condColor .. tostring(math.floor(entry.general_cond)) .. "%" .. "\\n" .. itemNameColor

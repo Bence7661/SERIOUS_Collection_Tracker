@@ -66,11 +66,11 @@ function UpsertInventoryEntry(obj)
         end
     end
 
+    local isFirearm = IsFirearm(obj)
     inventory[uiSection] =
     {
-        obj_ref = obj,
         obj_id = id,
-        general_cond = obj:condition() * 100,
+        general_cond = not isFirearm and obj:condition() * 100 or false,
         name = uiSection, -- Also dictionary key. Will be useful if I iterate with "for"
         obj_section = section,
         isPersistent = true,
@@ -90,7 +90,7 @@ function BatchTakeIntoInventory(stash)
                 local uiName = ui_item.get_sec_name(item:section())
                 
                 local itemA = item
-                local itemB = registeredInvItem and registeredInvItem.obj_ref or registerQueue[uiName]
+                local itemB = registeredInvItem and registeredInvItem.obj_id and alife():object(registeredInvItem.obj_id) or registerQueue[uiName]
                 local betterItem, isSameItem = serious_item_evaluator.ReturnTheBetterOne(itemA, itemB)
 
                 if betterItem then
@@ -161,14 +161,10 @@ function GetInventoryItemEntryByUiName(obj)
     return entry
 end
 
-function RefreshEntryCondition(entry) -- Should be refresh entry condition
-    local item = entry.obj_ref
-    if not item then
-        return
-    end
-
-    entry.general_cond = item:condition()
-
+function RefreshEntryCondition(entry)
+    local item = entry and entry.obj_id and get_object_by_id(entry.obj_id) or nil
+    if not item then return end
+    
     if not utils.HasParts(item) then
         return true
     end
@@ -196,8 +192,6 @@ end
 function DeleteEntriesForCurrSave()
     inventory = {}
     droppedEntryItemCache = {}
-
-    utils.SendPdaNews("All inventory entries removed.", 2000, 0)
 end
 
 -- General callbacks
