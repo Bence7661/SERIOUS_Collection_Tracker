@@ -170,6 +170,8 @@ function RefreshEntryCondition(entry)
     end
 
     local staticParts = item_parts.get_parts_con(item)
+    if not staticParts then return end
+
     for staticPrtName, staticCond in pairs(staticParts) do
         for i, part in ipairs(entry.parts) do
             if part.name == ui_item.get_sec_name(staticPrtName) then
@@ -348,20 +350,20 @@ end
 
 -- Debug
 -- No, not that SeriLog. Just a wrapper so ppl won't crash and I can leave logger calls in the mod for myself.
-function SeriLog(msg, ...)
+function SeriLog(msg, sendToPda, ...)
     if FileLogger then FileLogger.log(msg, ...) end
 
     local formattedMessage = string.format(msg, ...)
-    utils.SendPdaNews(formattedMessage, 2000, nil)
+    if sendToPda then utils.SendPdaNews(formattedMessage, 2000, nil) end
 end
 
 local function FlushInventory()
-    SeriLog("Flushing inventory")
+    SeriLog("Flushing inventory", true)
     DeleteEntriesForCurrSave()
 end
 
 local function RandomPartsCondForInvWeapons()
-    SeriLog("Randomizing weapon part conditions")
+    SeriLog("Randomizing weapon part conditions", true)
     
     db.actor:iterate_inventory(function(_, item)
         if not IsMelee(item) and IsWeapon(item) then
@@ -376,9 +378,35 @@ local function RandomPartsCondForInvWeapons()
     end, nil)
 end
 
+local function GetEntryForCurrentlyHeldItem()
+    SeriLog("Getting entry for currently held item.", true)
+    
+    local heldItem = db.actor:active_item()
+    if not heldItem then
+        SeriLog("Held item was `nil`.", true)
+        return
+    end
+
+    local entry = GetInventoryItemEntryByUiName(heldItem)
+    if not entry then
+        SeriLog("No entry found for: %s", true, heldItem:section())
+        return
+    end
+
+    SeriLog("obj_id: %s", false, entry.obj_id)
+    SeriLog("general_cond: %s", false, entry.general_cond)
+    SeriLog("name: %s", false, entry.name)
+    SeriLog("obj_section: %s", false, entry.obj_section)
+    SeriLog("isPersistent: %s", false, entry.isPersistent)
+    SeriLog("isInBox: %s", false, entry.isInBox)
+    SeriLog("parts: %s", false, entry.parts)
+    SeriLog("refreshPartsBeforeAccess: %s", false, entry.refreshPartsBeforeAccess)
+end
+
 local function onKeyPressCallback(key)
     if key == DIK_keys.DIK_X then FlushInventory() end
     if key == DIK_keys.DIK_C then RandomPartsCondForInvWeapons() end
+    if key == DIK_keys.DIK_F then GetEntryForCurrentlyHeldItem() end
 end
 -- Debug
 
