@@ -4,13 +4,14 @@
     |   Mod:         Collection Tracker  |
     |   Version:     v1.0.0              |
     |   Created:     03.24.2025          |
-    |   Last edit:	 03.30.2025          |
+    |   Last edit:	 04.12.2025          |
     \------------------------------------/
 
     inventory 
     {
         {
             obj_id = 1,
+            general_cond = 50 --or false
             name = "M4"
             obj_section = "wpn_brn180"
             isPersistent = true
@@ -28,6 +29,7 @@
                     cond_txt = "20%"
                 }
             }
+            refreshPartsBeforeAccess = true
         }
     }
 --]]
@@ -41,7 +43,7 @@ local droppedEntryItemCache = {}
 local delayedMarkInventoryEntryPersistentEvents = 0
 
 function UpsertInventoryEntry(obj)
-    if not obj then return false end
+    if not obj or utils.IsServerObj(obj) then return false end
 
     local id = obj:id()
     local entryItemParts = {}
@@ -88,16 +90,20 @@ function BatchTakeIntoInventory(stash)
             local registeredInvItem = GetInventoryItemEntryByUiName(item)
             if item:id() ~= (registeredInvItem and registeredInvItem.obj_id) then
                 local uiName = ui_item.get_sec_name(item:section())
-                
+
                 local itemA = item
-                local itemB = registeredInvItem and registeredInvItem.obj_id and alife():object(registeredInvItem.obj_id) or registerQueue[uiName]
+                local itemB = 
+                    registeredInvItem and registeredInvItem.obj_id
+                    and (get_object_by_id(registeredInvItem.obj_id) or alife():object(registeredInvItem.obj_id))
+                    or registerQueue[uiName]
+
                 local betterItem, isSameItem = serious_item_evaluator.ReturnTheBetterOne(itemA, itemB)
 
                 if betterItem then
                     registerQueue[uiName] = betterItem
                 end
 
-                if not isSameItem then
+                if not isSameItem and not utils.IsServerObj(betterItem) then
                     TakeFromInventory(item:section())
                 end
             end
@@ -406,7 +412,7 @@ end
 local function onKeyPressCallback(key)
     if key == DIK_keys.DIK_X then FlushInventory() end
     if key == DIK_keys.DIK_C then RandomPartsCondForInvWeapons() end
-    if key == DIK_keys.DIK_F then GetEntryForCurrentlyHeldItem() end
+    if key == DIK_keys.DIK_O then GetEntryForCurrentlyHeldItem() end
 end
 -- Debug
 

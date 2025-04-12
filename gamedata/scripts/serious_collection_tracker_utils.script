@@ -55,6 +55,52 @@ function IsEntryObjFirearm(entry)
     return IsFirearm(objRef)
 end
 
+function GetObjId(obj)
+    if not obj then return nil end
+
+    if type(obj.id) == "number" then return obj.id else return obj:id() end
+end
+
+function IsServerObj(obj)
+    if not obj then return nil end
+
+    if type(obj.id) == "number" then
+        return true  -- The object is found and online
+    else
+        return false   -- The object is not found, so it's offline
+    end
+end
+
+function GetPartsCondition(obj)
+    if not obj then return nil end
+    
+    if IsServerObj(obj) then
+        return item_parts.get_parts_con(nil, GetObjId(obj))
+    else
+        return item_parts.get_parts_con(obj)
+    end
+end
+
+function GetObjectCondition(obj)
+    if not obj then return nil end
+
+    if IsServerObj(obj) then
+        return obj.condition
+    else
+        return obj:condition()
+    end
+end
+
+function GetObjSection(obj)
+    if not obj then return nil end
+
+    if IsServerObj(obj) then
+        return obj:section_name()
+    else
+        return obj:section()
+    end
+end
+
 --Each version will add stuff to this if the data structure changes.
 function UpdateDataStructure()
     local inventory = serious_collection_tracker.GetInventory()

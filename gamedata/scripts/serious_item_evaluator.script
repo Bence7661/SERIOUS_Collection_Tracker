@@ -1,3 +1,5 @@
+local utils = serious_collection_tracker_utils
+
 local function GetMedian(numbers)
     if #numbers == 0 then
         return 0
@@ -14,17 +16,18 @@ local function GetMedian(numbers)
 end
 
 function EvaluateItemCondition(obj)
+    if not obj then return -1 end
+
     local score = -1
     local partCnt = 0
     local condList = {}
-    local objParts = obj and item_parts.get_parts_con(obj) or nil
+    local objParts = utils.GetPartsCondition(obj)
 
-    if not obj then return score end
-    if not objParts then return obj:condition() end
+    if not objParts then return utils.GetObjectCondition(obj) end
 
     for prtName, cond in pairs(objParts) do
         local uiPartName = ui_item.get_sec_name(prtName)
-        if uiPartName ~= ui_item.get_sec_name(obj:section()) then
+        if uiPartName ~= ui_item.get_sec_name(utils.GetObjSection(obj)) then
             score = score + cond
             partCnt = partCnt + 1
             table.insert(condList, cond)
@@ -36,11 +39,13 @@ function EvaluateItemCondition(obj)
 end
 
 -- Returns: <obj>, <bool>
+-- itemB can be server object!
 function ReturnTheBetterOne(itemA, itemB)
     if not itemA and not itemB then return nil, false end
     if not itemA then return itemB, false end
     if not itemB then return itemA, false end
-    if itemA:id() == itemB:id() then return itemA, true end
+
+    if itemA:id() == utils.GetObjId(itemB) then return itemA, true end
 
     local itemAScore = EvaluateItemCondition(itemA)
     local itemBScore = EvaluateItemCondition(itemB)
