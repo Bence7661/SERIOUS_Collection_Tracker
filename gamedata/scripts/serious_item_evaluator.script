@@ -50,7 +50,7 @@ function ReturnTheBetterOne(itemA, itemB)
     local itemAScore = EvaluateItemCondition(itemA)
     local itemBScore = EvaluateItemCondition(itemB)
 
-    if itemAScore < itemBScore then
+    if itemAScore or -1 < itemBScore or -1 then
         return itemB, false
     end
 

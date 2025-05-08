@@ -55,15 +55,17 @@ function UpsertInventoryEntry(obj)
     if utils.HasParts(obj) then
         local objParts = item_parts.get_parts_con(obj)
 
-        for prtName, cond in pairs(objParts) do
-            local uiPartName = ui_item.get_sec_name(prtName)
-            if uiPartName ~= ui_item.get_sec_name(section) then
-                entryItemParts[#entryItemParts + 1] =
-                {
-                    name = uiPartName,
-                    cond = cond,
-                    cond_txt = tostring(cond) .. "%"
-                }
+        if objParts then
+            for prtName, cond in pairs(objParts) do
+                local uiPartName = ui_item.get_sec_name(prtName)
+                if uiPartName ~= ui_item.get_sec_name(section) then
+                    entryItemParts[#entryItemParts + 1] =
+                    {
+                        name = uiPartName,
+                        cond = cond,
+                        cond_txt = tostring(cond) .. "%"
+                    }
+                end
             end
         end
     end
